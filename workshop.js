@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   workshop.js —— 贴图工坊（特效贴图生成器）
+   workshop.js —— 贴图台（特效贴图生成器）
 
    全部在浏览器里跑：不发任何请求、不上传任何东西、也不依赖服务端。
    所以本地版和链接版（GitHub Pages）行为完全一致 —— 这一页没有模式分支。
@@ -32,10 +32,14 @@
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
   /** 周期性值噪波：per 是整数周期，所以整张图可以无缝平铺 */
+  // 每层可以关掉「四方连续」（见图层的「连续」开关）。关掉就用普通哈希，接缝不再对齐。
+  var TILING = true;
   function pnoise(x, y, per, seed) {
     var xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
     var u = smooth(xf), v = smooth(yf);
-    function w(i, j) { return hash2(((i % per) + per) % per, ((j % per) + per) % per, seed); }
+    function w(i, j) {
+      return TILING ? hash2(((i % per) + per) % per, ((j % per) + per) % per, seed) : hash2(i, j, seed);
+    }
     return lerp(lerp(w(xi, yi), w(xi + 1, yi), u), lerp(w(xi, yi + 1), w(xi + 1, yi + 1), u), v);
   }
   /** 分形噪波（每层周期翻倍，保证每层都连续） */
@@ -56,7 +60,7 @@
     var cix = 0, ciy = 0;
     for (var j = -1; j <= 1; j++) for (var i = -1; i <= 1; i++) {
       var cx = xi + i, cy = yi + j;
-      var gx = ((cx % p) + p) % p, gy = ((cy % p) + p) % p;
+      var gx = TILING ? ((cx % p) + p) % p : cx, gy = TILING ? ((cy % p) + p) % p : cy;
       var px = cx + hash2(gx, gy, seed), py = cy + hash2(gx, gy, seed + 7919);
       var d = Math.hypot(px - x, py - y);
       if (d < f1) { f2 = f1; f1 = d; cix = gx; ciy = gy; } else if (d < f2) { f2 = d; }
@@ -82,6 +86,10 @@
     烟灰: ['#08090b', '#22262b', '#4b535c', '#858f9a', '#c6cdd6', '#f4f6f8'],
     彩虹: ['#ff2d55', '#ff9500', '#ffd60a', '#34c759', '#32ade6', '#af52de'],
     热力: ['#000000', '#1b0033', '#6a00a8', '#e01f5a', '#ff9d00', '#fffbd6'],
+    日落: ['#1a0a2e', '#5c1f5e', '#c73e5c', '#ff8a4c', '#ffd08a', '#fff3d6'],
+    深海: ['#01060f', '#05284a', '#0a5f7a', '#22a3a8', '#8fe0d0', '#f0fffb'],
+    血月: ['#050203', '#2a0509', '#6b0d14', '#b81f22', '#e8683c', '#ffd9a8'],
+    薄荷: ['#04100c', '#0d3b2c', '#1e7a52', '#4cc98a', '#b8f2c8', '#f4fff2'],
     自定义: ['#000000', '#ffffff']
   };
   function rampAt(stops, t) {
@@ -412,6 +420,74 @@
     }
   });
 
+  TYPES.push({
+    id: 'petals', name: '花瓣', cat: '放射', tags: ['花', '绽放', '圣光'], tile: true, anim: true,
+    params: [{ k: 'count', label: '花瓣数', min: 3, max: 24, step: 1, def: 6 },
+      { k: 'sharp', label: '瓣形', min: 0.3, max: 4, step: 0.05, def: 1.2 },
+      { k: 'fill', label: '大小', min: 0.1, max: 1.3, step: 0.02, def: 0.8 },
+      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
+      { k: 'soft', label: '柔化', min: 0.01, max: 0.5, step: 0.01, def: 0.07 }],
+    fn: function (p, x, y, t, s) {
+      // 玫瑰线：半径上限随角度按 |cos(n/2·θ)| 变化，就是花瓣
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2;
+      var a = Math.atan2(dy, dx) + t * p.spin * TAU;
+      var rm = p.fill * Math.pow(Math.abs(Math.cos(a * p.count / 2)), p.sharp);
+      return clamp((rm - r) / p.soft + 0.5, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'rings', name: '同心环', cat: '环形', tags: ['扩散', '波', '脉冲'], tile: true, anim: true,
+    params: [{ k: 'count', label: '环数', min: 2, max: 40, step: 1, def: 8 },
+      { k: 'width', label: '环宽', min: 0.02, max: 0.9, step: 0.01, def: 0.35 },
+      { k: 'warp', label: '扭曲', min: 0, max: 1, step: 0.02, def: 0 },
+      { k: 'scale', label: '噪声密度', min: 1, max: 16, step: 1, def: 6 },
+      { k: 'grow', label: '自动扩张', min: 0, max: 1, step: 0.05, def: 0 }],
+    fn: function (p, x, y, t, s) {
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2;
+      var rr = r * p.count + t * p.grow * p.count;
+      if (p.warp > 0) rr += (fbmN(x * p.scale, y * p.scale, p.scale, 3, s, 0.5) - 0.5) * p.warp * 6;
+      var f = Math.abs((((rr % 1) + 1) % 1) - 0.5) * 2;      // 0 = 环心，1 = 两环正中间
+      return clamp(1 - f / p.width, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'ripple', name: '水波', cat: '自然现象', tags: ['水', '焦散', '波纹'], tile: true, anim: true,
+    params: [{ k: 'scale', label: '密度', min: 1, max: 16, step: 1, def: 5 },
+      { k: 'speed', label: '速度', min: 0, max: 1, step: 0.02, def: 0.3 },
+      { k: 'sharp', label: '锐度', min: 1, max: 6, step: 0.1, def: 2.4 },
+      { k: 'mix', label: '湍流混合', min: 0, max: 1, step: 0.02, def: 0.5 }],
+    fn: function (p, x, y, t, s) {
+      // 焦散感 = 平滑噪波 + 湍流噪波混在一起，再过一层正弦条纹
+      var n1 = fbmN(x * p.scale, y * p.scale, p.scale, 4, s, 0.5);
+      var n2 = turbN(x * p.scale * 1.7 + 7, y * p.scale * 1.7 + 3, Math.max(1, p.scale * 2), 3, s);
+      var v = 0.5 + 0.5 * Math.sin((n1 * (1 - p.mix) + n2 * p.mix) * Math.PI * 6 + t * p.speed * TAU);
+      return clamp(Math.pow(v, 1 / p.sharp) * 1.25, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'circuit', name: '电路', cat: '数字', tags: ['科技', 'HUD', 'PCB'], tile: true,
+    params: [{ k: 'cells', label: '网格', min: 2, max: 24, step: 1, def: 8 },
+      { k: 'width', label: '线宽', min: 0.03, max: 0.4, step: 0.005, def: 0.16 },
+      { k: 'density', label: '走线密度', min: 0.1, max: 1, step: 0.02, def: 0.65 },
+      { k: 'nodes', label: '节点概率', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'soft', label: '柔化', min: 0.01, max: 0.2, step: 0.005, def: 0.05 }],
+    fn: function (p, x, y, t, s) {
+      var q = p.cells, gx = x * q, gy = y * q;
+      var ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy;
+      var h = hash2(((ix % q) + q) % q, ((iy % q) + q) % q, s);
+      var d = 9;                                        // 到走线的距离，9 = 这个格子不放线
+      if (h < p.density * 0.45) d = Math.abs(fy - 0.5);                                   // 横线
+      else if (h < p.density * 0.9) d = Math.abs(fx - 0.5);                               // 竖线
+      else if (h < p.density) d = Math.min(Math.abs(fx - 0.5), Math.abs(fy - 0.5));       // 十字
+      var v = clamp((p.width - d) / p.soft + 0.5, 0, 1);
+      if (p.nodes > 0 && h > 1 - p.nodes * 0.5) {
+        var nd = Math.hypot(fx - 0.5, fy - 0.5);
+        v = Math.max(v, clamp((p.width * 1.6 - nd) / p.soft + 0.5, 0, 1));
+      }
+      return v;
+    }
+  });
+
   var TYPE_BY_ID = {};
   TYPES.forEach(function (x) { TYPE_BY_ID[x.id] = x; });
   var CATS = [];
@@ -457,6 +533,7 @@
     return {
       id: 'L' + (uid++), type: T.id, name: T.name, visible: true, opacity: 1, blend: 'source-over',
       alphaFromLum: false, color: { mode: 'gray', ramp: '火焰', solid: '#ff8932' },
+      tile: true, fx: {},
       seed: seed === undefined ? ((Math.random() * 1e6) | 0) : seed, params: params
     };
   }
@@ -481,6 +558,189 @@
     return d;
   }
 
+  /* ───────────────────────────── 后处理 ─────────────────────────────
+     全部在**灰度场**上做（Float32Array，0..1），顺序是：几何类 → 卷积类 → 调色类。
+     上色（灰度/单色/色阶）在最后一步，所以后处理只看得见形状，不掺颜色，效果更好预期。
+
+     这批算法的来路：噪声/卷积/距离场都是公开数学，我们自己写实现。
+     噪声 / 卷积 / 距离场都是公开数学，实现是自己写的。
+     功能清单是照着同类工具对齐的，代码一行没搬。                              */
+  var POSTFX = [
+    { k: 'pixelate', name: '像素化', params: [{ k: 'size', label: '方块尺寸', min: 2, max: 64, step: 1, def: 8 }],
+      fn: function (f, n, p) {
+        var s = Math.max(1, Math.round(p.size)), out = new Float32Array(f.length);
+        for (var y = 0; y < n; y += s) for (var x = 0; x < n; x += s) {
+          var sum = 0, cnt = 0;
+          for (var j = 0; j < s && y + j < n; j++) for (var i = 0; i < s && x + i < n; i++) { sum += f[(y + j) * n + x + i]; cnt++; }
+          var avg = cnt ? sum / cnt : 0;
+          for (var j2 = 0; j2 < s && y + j2 < n; j2++) for (var i2 = 0; i2 < s && x + i2 < n; i2++) out[(y + j2) * n + x + i2] = avg;
+        }
+        return out;
+      } },
+    { k: 'kaleido', name: '万花筒', params: [{ k: 'seg', label: '分割数', min: 2, max: 24, step: 1, def: 6 },
+      { k: 'rot', label: '旋转', min: 0, max: 360, step: 1, def: 0 }, { k: 'mix', label: '强度', min: 0, max: 1, step: 0.02, def: 1 }],
+      fn: function (f, n, p) {
+        var seg = Math.max(2, Math.round(p.seg)), rot = p.rot * Math.PI / 180, out = new Float32Array(f.length);
+        var half = n / 2, sector = Math.PI * 2 / seg;
+        for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+          var dx = x - half, dy = y - half;
+          var r = Math.hypot(dx, dy), a = Math.atan2(dy, dx) + rot;
+          var m = ((a % sector) + sector) % sector;
+          if (m > sector / 2) m = sector - m;                  // 扇形内镜像
+          var sx = Math.round(half + r * Math.cos(m)), sy = Math.round(half + r * Math.sin(m));
+          sx = sx < 0 ? 0 : sx >= n ? n - 1 : sx; sy = sy < 0 ? 0 : sy >= n ? n - 1 : sy;
+          out[y * n + x] = f[sy * n + sx] * p.mix + f[y * n + x] * (1 - p.mix);
+        }
+        return out;
+      } },
+    { k: 'swirl', name: '漩涡', params: [{ k: 'amount', label: '强度', min: 0, max: 3, step: 0.05, def: 1 },
+      { k: 'radius', label: '影响半径', min: 0.1, max: 1.5, step: 0.02, def: 0.8 }],
+      fn: function (f, n, p) {
+        var out = new Float32Array(f.length), half = n / 2, R = p.radius * half;
+        for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+          var dx = x - half, dy = y - half, r = Math.hypot(dx, dy);
+          var a = Math.atan2(dy, dx), k = r < R ? (1 - r / R) : 0;
+          a += k * k * p.amount * Math.PI;
+          var sx = Math.round(half + r * Math.cos(a)), sy = Math.round(half + r * Math.sin(a));
+          sx = sx < 0 ? 0 : sx >= n ? n - 1 : sx; sy = sy < 0 ? 0 : sy >= n ? n - 1 : sy;
+          out[y * n + x] = f[sy * n + sx];
+        }
+        return out;
+      } },
+    { k: 'blur', name: '模糊', params: [{ k: 'r', label: '半径', min: 0, max: 40, step: 0.5, def: 6 },
+      { k: 'amount', label: '强度', min: 0, max: 1, step: 0.02, def: 1 }],
+      fn: function (f, n, p, t, hl) {
+        var r = Math.max(0, Math.round(p.r));
+        if (r < 1 || p.amount <= 0) return f;
+        var tmp = new Float32Array(f.length), out = new Float32Array(f.length);
+        hl.boxH(f, tmp, n, r); hl.boxV(tmp, out, n, r);
+        hl.boxH(out, tmp, n, Math.max(1, r >> 1)); hl.boxV(tmp, out, n, Math.max(1, r >> 1));
+        if (p.amount >= 1) return out;
+        for (var i = 0; i < f.length; i++) out[i] = f[i] * (1 - p.amount) + out[i] * p.amount;
+        return out;
+      } },
+    { k: 'bloom', name: '泛光', params: [{ k: 'thr', label: '阈值', min: 0, max: 1, step: 0.01, def: 0.6 },
+      { k: 'r', label: '半径', min: 1, max: 40, step: 1, def: 10 }, { k: 'amount', label: '强度', min: 0, max: 1.5, step: 0.02, def: 0.6 }],
+      fn: function (f, n, p, t, hl) {
+        if (p.amount <= 0) return f;
+        var bright = new Float32Array(f.length), thr = p.thr;
+        for (var i = 0; i < f.length; i++) { var v = (f[i] - thr) / Math.max(0.001, 1 - thr); bright[i] = v > 0 ? v : 0; }
+        var tmp = new Float32Array(f.length), out = new Float32Array(f.length);
+        var r = Math.max(1, Math.round(p.r));
+        hl.boxH(bright, tmp, n, r); hl.boxV(tmp, out, n, r);
+        var res = new Float32Array(f.length);
+        for (var j = 0; j < f.length; j++) { var v2 = f[j] + out[j] * p.amount; res[j] = v2 > 1 ? 1 : v2; }
+        return res;
+      } },
+    { k: 'sharpen', name: '锐化', params: [{ k: 'amount', label: '强度', min: 0, max: 3, step: 0.05, def: 0.8 },
+      { k: 'r', label: '半径', min: 1, max: 12, step: 1, def: 2 }],
+      fn: function (f, n, p, t, hl) {
+        if (p.amount <= 0) return f;
+        var tmp = new Float32Array(f.length), soft = new Float32Array(f.length);
+        var r = Math.max(1, Math.round(p.r));
+        hl.boxH(f, tmp, n, r); hl.boxV(tmp, soft, n, r);
+        var out = new Float32Array(f.length);
+        for (var i = 0; i < f.length; i++) { var v = f[i] + (f[i] - soft[i]) * p.amount; out[i] = v < 0 ? 0 : v > 1 ? 1 : v; }
+        return out;
+      } },
+    { k: 'edge', name: '边缘检测', params: [{ k: 'amount', label: '强度', min: 0, max: 4, step: 0.05, def: 1.2 },
+      { k: 'invert', label: '反相', min: 0, max: 1, step: 1, def: 0, enum: ['否', '是'] }],
+      fn: function (f, n, p) {
+        var out = new Float32Array(f.length);
+        var at = function (x, y) { return f[Math.max(0, Math.min(n - 1, y)) * n + Math.max(0, Math.min(n - 1, x))]; };
+        for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+          var gx = (at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x - 1, y) + at(x - 1, y + 1));
+          var gy = (at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x, y - 1) + at(x + 1, y - 1));
+          var m = Math.hypot(gx, gy) * p.amount;
+          if (m > 1) m = 1;
+          out[y * n + x] = p.invert > 0.5 ? 1 - m : m;
+        }
+        return out;
+      } },
+    { k: 'posterize', name: '阶调化', params: [{ k: 'steps', label: '阶数', min: 2, max: 16, step: 1, def: 5 },
+      { k: 'mix', label: '强度', min: 0, max: 1, step: 0.02, def: 1 }],
+      fn: function (f, n, p) {
+        var s = Math.max(2, Math.round(p.steps)), out = new Float32Array(f.length), ia = 1 - p.mix;
+        for (var i = 0; i < f.length; i++) {
+          var q = Math.round(f[i] * (s - 1)) / (s - 1);
+          out[i] = q * p.mix + f[i] * ia;
+        }
+        return out;
+      } },
+    { k: 'vignette', name: '暗角', params: [{ k: 'amount', label: '强度', min: 0, max: 1, step: 0.02, def: 0.6 },
+      { k: 'radius', label: '影响半径', min: 0.2, max: 1.6, step: 0.02, def: 0.9 }],
+      fn: function (f, n, p) {
+        var out = new Float32Array(f.length), half = n / 2, R = p.radius * half;
+        for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+          var d = Math.hypot(x - half, y - half) / R;
+          var k = d <= 1 ? 1 : Math.max(0, 1 - (d - 1) * 2);
+          out[y * n + x] = f[y * n + x] * (1 - p.amount * (1 - k));
+        }
+        return out;
+      } },
+    { k: 'scanlines', name: '扫描线', params: [{ k: 'density', label: '密度', min: 4, max: 200, step: 1, def: 60 },
+      { k: 'amount', label: '强度', min: 0, max: 1, step: 0.02, def: 0.35 }, { k: 'speed', label: '速度', min: 0, max: 2, step: 0.05, def: 0 }],
+      fn: function (f, n, p, t) {
+        var out = new Float32Array(f.length), ph = t * p.speed * Math.PI * 2;
+        for (var y = 0; y < n; y++) {
+          var s = 0.5 + 0.5 * Math.sin(y / n * p.density * Math.PI * 2 + ph);
+          var k = 1 - p.amount * s;
+          for (var x = 0; x < n; x++) out[y * n + x] = f[y * n + x] * k;
+        }
+        return out;
+      } },
+    { k: 'radialMask', name: '径向遮罩', params: [{ k: 'radius', label: '影响半径', min: 0.05, max: 1.5, step: 0.02, def: 0.7 },
+      { k: 'feather', label: '羽化', min: 0.01, max: 1, step: 0.01, def: 0.3 }, { k: 'invert', label: '反向', min: 0, max: 1, step: 1, def: 0, enum: ['否', '是'] }],
+      fn: function (f, n, p) {
+        var out = new Float32Array(f.length), half = n / 2, R = p.radius * half;
+        for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+          var d = Math.hypot(x - half, y - half);
+          var k = 1 - Math.min(1, Math.max(0, (d - R) / (p.feather * half)));   // 圆内 1，边缘羽化到 0
+          if (p.invert > 0.5) k = 1 - k;
+          out[y * n + x] = f[y * n + x] * k;
+        }
+        return out;
+      } }
+  ];
+  var POSTFX_BY_KEY = {};
+  POSTFX.forEach(function (F) { POSTFX_BY_KEY[F.k] = F; });
+  /** 卷积类要用的两个方向的一维盒式模糊（滑窗，O(n)） */
+  var boxHelpers = {
+    boxH: function (src, dst, n, r) {
+      var win = r * 2 + 1;
+      for (var y = 0; y < n; y++) {
+        var row = y * n, sum = 0;
+        for (var i = -r; i <= r; i++) sum += src[row + Math.min(n - 1, Math.max(0, i))];
+        for (var x = 0; x < n; x++) {
+          dst[row + x] = sum / win;
+          sum += src[row + Math.min(n - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
+        }
+      }
+    },
+    boxV: function (src, dst, n, r) {
+      var win = r * 2 + 1;
+      for (var x = 0; x < n; x++) {
+        var sum = 0;
+        for (var i = -r; i <= r; i++) sum += src[Math.min(n - 1, Math.max(0, i)) * n + x];
+        for (var y = 0; y < n; y++) {
+          dst[y * n + x] = sum / win;
+          sum += src[Math.min(n - 1, y + r + 1) * n + x] - src[Math.max(0, y - r) * n + x];
+        }
+      }
+    }
+  };
+  /** 跑一层图层的后处理链；layer.fx 形如 { blur: {on:true, r:6, amount:1}, ... } */
+  function applyPostFx(field, size, fx, t) {
+    if (!fx) return field;
+    var f = field;
+    for (var i = 0; i < POSTFX.length; i++) {
+      var F = POSTFX[i], cfg = fx[F.k];
+      if (!cfg || !cfg.on) continue;
+      f = F.fn(f, size, cfg, t, boxHelpers);
+    }
+    return f;
+  }
+
   /* ───────────────────────────── 渲染引擎 ───────────────────────────── */
   var scratch = document.createElement('canvas');
   var scratchCtx = scratch.getContext('2d');
@@ -488,22 +748,35 @@
   var docCtx = docCanvas.getContext('2d');
   var imgCache = {};
 
-  /** 把一个图层的灰度场渲染到离屏画布上 */
-  function renderLayerField(layer, size, t) {
+  /** 只算灰度场（0..1），不碰颜色 —— 后处理和自检都吃这个 */
+  function renderField(layer, size, t) {
     var T = TYPE_BY_ID[layer.type];
     if (!T) return null;
-    var c = document.createElement('canvas'); c.width = c.height = size;
-    var ctx = c.getContext('2d');
-    var img = ctx.createImageData(size, size);
-    var d = img.data;
     var fn = T.fn, P = layer.params, seed = layer.seed | 0;
-    var mode = layer.color.mode, ramp = RAMPS[layer.color.ramp] || RAMPS.火焰, tint = hex2rgb(layer.color.solid);
+    TILING = layer.tile !== false;
+    var f = new Float32Array(size * size);
     var inv = 1 / size;
     for (var y = 0; y < size; y++) {
       var v0 = y * inv;
       for (var x = 0; x < size; x++) {
         var v = fn(P, x * inv, v0, t, seed);
-        if (!(v >= 0)) v = 0; else if (v > 1) v = 1;   // NaN / 负数一律当 0，防呆
+        f[y * size + x] = (!(v >= 0)) ? 0 : (v > 1 ? 1 : v);   // NaN / 负数一律当 0，防呆
+      }
+    }
+    return applyPostFx(f, size, layer.fx, t);
+  }
+  /** 把灰度场渲染到离屏画布上（上色 + 可选「亮度转透明」） */
+  function renderLayerField(layer, size, t) {
+    var f = renderField(layer, size, t);
+    if (!f) return null;
+    var c = document.createElement('canvas'); c.width = c.height = size;
+    var ctx = c.getContext('2d');
+    var img = ctx.createImageData(size, size);
+    var d = img.data;
+    var mode = layer.color.mode, ramp = RAMPS[layer.color.ramp] || RAMPS.火焰, tint = hex2rgb(layer.color.solid);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        var v = f[y * size + x];
         var i = (y * size + x) * 4;
         if (mode === 'solid') { d[i] = tint[0]; d[i + 1] = tint[1]; d[i + 2] = tint[2]; }
         else if (mode === 'ramp') {
@@ -526,11 +799,16 @@
   function renderImageLayer(layer, size) {
     var img = layer._img;
     if (!img) return null;
+    var P = layer.params || {};
     var c = document.createElement('canvas'); c.width = c.height = size;
     var ctx = c.getContext('2d');
-    var s = Math.min(size / img.width, size / img.height);
+    var fit = Math.min(size / img.width, size / img.height);
+    var s = fit * (P.imgScale === undefined ? 1 : P.imgScale);
     var w = img.width * s, h = img.height * s;
-    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    ctx.translate(size / 2 + (P.imgX || 0) * size, size / 2 + (P.imgY || 0) * size);
+    ctx.rotate((P.imgRot || 0) * Math.PI / 180);
+    ctx.scale(P.imgFlipX ? -1 : 1, P.imgFlipY ? -1 : 1);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
     return c;
   }
 
@@ -658,6 +936,94 @@
     for (var i = 0; i < frames; i++) ctx.drawImage(renderDoc(i / frames), (i % cols) * size, Math.floor(i / cols) * size);
     c.toBlob(function (b) { if (b) download('sprite-' + cols + 'x' + rows + '-' + stamp() + '.png', b); }, 'image/png');
   }
+  /* ── 序列帧导出：编号 PNG 打包成 zip ──
+     不用 GIF 的两个理由：① 动画贴图喂引擎/AE 要的是**带透明通道的序列帧**，GIF 只有 1 位透明、还限 256 色；
+     ② 自己写 GIF 编码器（LZW + 调色板量化）出来的质量还不如浏览器自己的 PNG 编码器。
+     所以：每帧用 canvas.toBlob 出 PNG（浏览器自己的编码器，体积小），再用 store 模式打成 zip
+     —— PNG 已经是压缩数据，zip 再压一遍没用。 */
+  function zipStore(files) {
+    var chunks = [], central = [], offset = 0, total = 0;
+    files.forEach(function (f) {
+      var nameBytes = new TextEncoder().encode(f.name);
+      var crc = crc32(f.data), len = f.data.length;
+      var lh = new Uint8Array(30 + nameBytes.length);
+      var dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true);          // 本地文件头
+      dv.setUint16(4, 20, true);                  // 需要的版本
+      dv.setUint16(6, 0, true);                   // 标志位
+      dv.setUint16(8, 0, true);                   // 压缩方式 0 = store
+      dv.setUint16(10, 0, true);                  // 时间（固定值 → 同样内容出同样字节）
+      dv.setUint16(12, 0x0021, true);             // 日期 1980-01-01
+      dv.setUint32(14, crc, true);
+      dv.setUint32(18, len, true);
+      dv.setUint32(22, len, true);
+      dv.setUint16(26, nameBytes.length, true);
+      dv.setUint16(28, 0, true);
+      lh.set(nameBytes, 30);
+      var ch = new Uint8Array(46 + nameBytes.length);
+      var cv = new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true);          // 中央目录
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, 0, true);
+      cv.setUint16(14, 0x0021, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, len, true);
+      cv.setUint32(24, len, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint32(38, 0, true);
+      cv.setUint32(42, offset, true);
+      ch.set(nameBytes, 46);
+      chunks.push(lh, f.data);
+      central.push(ch);
+      offset += lh.length + len;
+      total += 1;
+    });
+    var centralSize = central.reduce(function (a, b) { return a + b.length; }, 0);
+    var eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);            // 中央目录结束记录
+    ev.setUint16(8, total, true);
+    ev.setUint16(10, total, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, offset, true);
+    var out = new Uint8Array(offset + centralSize + 22), p = 0;
+    chunks.forEach(function (c) { out.set(c, p); p += c.length; });
+    central.forEach(function (c) { out.set(c, p); p += c.length; });
+    out.set(eocd, p);
+    return out;
+  }
+  function canvasToPngBytes(canvas) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (b) {
+        if (!b) { resolve(null); return; }
+        b.arrayBuffer().then(function (buf) { resolve(new Uint8Array(buf)); });
+      }, 'image/png');
+    });
+  }
+  /** 导出序列帧：t 从 0 到 1 均匀取 frames 帧，编号命名，打包成 zip */
+  async function exportSequence(frames, prefix) {
+    var size = doc.size, files = [], i;
+    for (i = 0; i < frames; i++) {
+      var src = renderDoc(i / frames);
+      var c = document.createElement('canvas'); c.width = c.height = size;
+      var ctx = c.getContext('2d'); ctx.drawImage(src, 0, 0);
+      var bytes = await canvasToPngBytes(c);
+      if (!bytes) continue;
+      var n2 = String(i + 1);
+      while (n2.length < 4) n2 = '0' + n2;
+      files.push({ name: prefix + '_' + n2 + '.png', data: bytes });
+      if (typeof updateSeqProgress === 'function') updateSeqProgress(i + 1, frames);
+    }
+    if (!files.length) { toast('导出失败：这一帧都没渲染出来'); return 0; }
+    var zip = zipStore(files);
+    var kb = Math.round(zip.length / 1024);
+    download(prefix + '_' + frames + 'f_' + stamp() + '.zip', new Blob([zip], { type: 'application/zip' }));
+    toast('已导出 ' + files.length + ' 帧（' + kb + ' KB）');
+    return files.length;
+  }
+
   /** 通道打包：直接算灰度场，不经过画布 */
   function exportPack(mapCh) {
     var size = doc.size, out = new Uint8Array(size * size * 4);
@@ -717,6 +1083,15 @@
   var tNow = 0, playing = false, playRaf = 0;
   var tileN = 1, zoomMode = 'fit';
   var filterCat = '全部', filterText = '';
+  // 收藏 / 最近（存本机，不上传）
+  var favs = {}, recent = [];
+  try { favs = JSON.parse(localStorage.getItem('vfx-ws-favs') || '{}') || {}; } catch (e) { favs = {}; }
+  try { recent = JSON.parse(localStorage.getItem('vfx-ws-recent') || '[]') || []; } catch (e) { recent = []; }
+  function saveFavs() { try { localStorage.setItem('vfx-ws-favs', JSON.stringify(favs)); } catch (e) {} }
+  function markRecent(id) {
+    recent = [id].concat(recent.filter(function (x) { return x !== id; })).slice(0, 12);
+    try { localStorage.setItem('vfx-ws-recent', JSON.stringify(recent)); } catch (e) {}
+  }
   var history = [], future = [];
   try {
     var saved = localStorage.getItem('vfx-workshop-doc');
@@ -802,8 +1177,13 @@
   function buildBrowser() {
     var tabs = $('ws-cats');
     tabs.textContent = '';
-    CATS_ALL.forEach(function (cat) {
-      var n = cat === '全部' ? TYPES.length : TYPES.filter(function (t) { return t.cat === cat; }).length;
+    var TAB_EXTRA = ['收藏', '最近'];
+    CATS_ALL.concat(TAB_EXTRA).forEach(function (cat) {
+      var n = cat === '全部' ? TYPES.length
+        : cat === '收藏' ? TYPES.filter(function (t) { return favs[t.id]; }).length
+        : cat === '最近' ? recent.length
+        : TYPES.filter(function (t) { return t.cat === cat; }).length;
+      if ((cat === '收藏' || cat === '最近') && !n) return;      // 空的时候不占地方
       var b = h('button', { class: 'ws-tab', type: 'button', 'aria-pressed': String(cat === filterCat) }, [document.createTextNode(cat + ' ' + n)]);
       b.addEventListener('click', function () { filterCat = cat; buildBrowser(); });
       tabs.appendChild(b);
@@ -812,10 +1192,13 @@
     list.textContent = '';
     var kw = filterText.trim().toLowerCase();
     var shown = TYPES.filter(function (T) {
-      if (filterCat !== '全部' && T.cat !== filterCat) return false;
+      if (filterCat === '收藏') { if (!favs[T.id]) return false; }
+      else if (filterCat === '最近') { if (recent.indexOf(T.id) < 0) return false; }
+      else if (filterCat !== '全部' && T.cat !== filterCat) return false;
       if (!kw) return true;
       return (T.name + ' ' + T.cat + ' ' + T.tags.join(' ')).toLowerCase().indexOf(kw) >= 0;
     });
+    if (filterCat === '最近') shown.sort(function (a, b) { return recent.indexOf(a.id) - recent.indexOf(b.id); });
     $('ws-type-count').textContent = shown.length + ' / ' + TYPES.length + ' 种';
     if (!shown.length) { list.appendChild(h('p', { class: 'ws-empty', text: '没有匹配的类型。换个词，或点「全部」清掉筛选。' })); return; }
     shown.forEach(function (T) {
@@ -828,6 +1211,7 @@
         h('span', { class: 'ws-thumb-tags', text: badges.length ? badges.join(' · ') : '静态' })
       ]);
       btn.addEventListener('click', function () {
+        markRecent(T.id);
         var l = curLayer();
         if (!l) { addLayer(T.id); return; }
         snapshot();
@@ -837,7 +1221,15 @@
         rebuildAll();
         toast('已切换成「' + T.name + '」');
       });
-      list.appendChild(btn);
+      var star = h('span', { class: 'ws-star' + (favs[T.id] ? ' is-on' : ''), role: 'button', title: '收藏 / 取消收藏', text: favs[T.id] ? '★' : '☆' });
+      star.addEventListener('click', function (e) {
+        e.stopPropagation(); e.preventDefault();
+        favs[T.id] = !favs[T.id];
+        saveFavs(); buildBrowser();
+      });
+      var shell = h('div', { class: 'ws-thumb-shell' });
+      shell.appendChild(btn); shell.appendChild(star);
+      list.appendChild(shell);
     });
   }
 
@@ -849,13 +1241,23 @@
     if (!l) { box.appendChild(h('p', { class: 'ws-empty', text: '还没有选中图层。右边点「＋ 新建」加一层。' })); return; }
 
     if (l.type === '__image') {
-      box.appendChild(h('p', { class: 'ws-note', text: '这是一个图片图层：原图直接当素材用，下面是它的变换。' }));
-      var rowI = h('div', { class: 'ws-param' }, [
-        h('div', { class: 'ws-param-label', text: '缩放' }),
-        sliderInput({ k: 'imgScale', label: '', min: 0.2, max: 3, step: 0.01, def: 1 }, l.params, function () { draw(); }),
-        numInput({ k: 'imgScale', min: 0.2, max: 3, step: 0.01 }, l.params, 1)
-      ]);
-      box.appendChild(rowI);
+      box.appendChild(h('p', { class: 'ws-note', text: '这是一个图片图层：原图直接当素材用，下面是它的变换（等比缩放，不会拉变形）。' }));
+      [{ k: 'imgScale', label: '缩放', min: 0.05, max: 4, step: 0.01, def: 1 },
+       { k: 'imgX', label: '左右位移', min: -1, max: 1, step: 0.01, def: 0 },
+       { k: 'imgY', label: '上下位移', min: -1, max: 1, step: 0.01, def: 0 },
+       { k: 'imgRot', label: '旋转°', min: -180, max: 180, step: 1, def: 0 }].forEach(function (pp) {
+        if (l.params[pp.k] === undefined) l.params[pp.k] = pp.def;
+        var slider = sliderInput(pp, l.params, function () { draw(); });
+        var num = numInput(pp, l.params, pp.def);
+        slider.addEventListener('input', function () { num.value = slider.value; });
+        box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: pp.label }), slider, num]));
+      });
+      [['imgFlipX', '水平翻转'], ['imgFlipY', '垂直翻转']].forEach(function (pp) {
+        var cb = h('input', { type: 'checkbox' });
+        cb.checked = !!l.params[pp[0]];
+        cb.addEventListener('change', function () { snapshot(); l.params[pp[0]] = cb.checked; touch(false); });
+        box.appendChild(h('label', { class: 'ws-check' }, [cb, h('span', { text: pp[1] })]));
+      });
     } else {
       var T = TYPE_BY_ID[l.type];
       if (T && T.params.length) {
@@ -864,6 +1266,34 @@
         box.appendChild(h('p', { class: 'ws-empty', text: '这个类型没有可调参数。' }));
       }
     }
+
+    // ── 连续（四方连续开关）──
+    var tileBox = h('input', { type: 'checkbox' });
+    tileBox.checked = l.tile !== false;
+    tileBox.addEventListener('change', function () { snapshot(); l.tile = tileBox.checked; touch(false); });
+    box.appendChild(h('div', { class: 'ws-param-group', text: '连续' }));
+    box.appendChild(h('label', { class: 'ws-check' }, [tileBox,
+      h('span', { text: '四方连续（整数密度下平铺无缝）' })]));
+
+    // ── 后处理（对齐了同类工具里最常用的 11 项）──
+    box.appendChild(h('div', { class: 'ws-param-group', text: '后处理' }));
+    var fxOn = 0;
+    POSTFX.forEach(function (F) {
+      if (!l.fx) l.fx = {};
+      var cfg = l.fx[F.k] || (l.fx[F.k] = { on: false });
+      F.params.forEach(function (p) { if (cfg[p.k] === undefined) cfg[p.k] = p.def; });
+      var box2 = h('input', { type: 'checkbox' });
+      box2.checked = !!cfg.on;
+      box2.addEventListener('change', function () { snapshot(); cfg.on = box2.checked; touch(true); });
+      box.appendChild(h('label', { class: 'ws-fx-head' + (cfg.on ? ' is-on' : '') }, [box2, h('span', { text: F.name })]));
+      if (cfg.on) {
+        fxOn++;
+        var fxBody = h('div', { class: 'ws-fx-body' });
+        F.params.forEach(function (p) { fxBody.appendChild(paramRow(p, { params: cfg })); });
+        box.appendChild(fxBody);
+      }
+    });
+    if (!fxOn) box.appendChild(h('p', { class: 'ws-note', text: '后处理是形状做完之后的加工：模糊、泛光、像素化、暗角这些。勾一个试试。' }));
 
     // ── 着色 ──
     box.appendChild(h('div', { class: 'ws-param-group', text: '着色' }));
@@ -1053,7 +1483,8 @@
     var items = [
       ['PNG 贴图', '把当前画面导出成 PNG，保留透明。这是最常用的一个。', '下载 PNG', function () { exportPNG(); }],
       ['法线图', '由当前画面的灰度生成切线空间法线图（绿通道向上），直接能给引擎用。', '下载法线图', function () { exportNormal(); }],
-      ['序列图集', '按帧把动画铺成网格，供 UE5 翻转书用。动态类型才有意义。', '下载图集', function () { askSprite(); }],
+      ['序列帧（zip）', '把动画按帧导出成编号 PNG（每秒 24 帧就导 24 张），打包成一个 zip —— AE、UE5、Nuke 直接吃。带完整透明通道，比 GIF 实用。', '导出序列帧', function () { $('ws-export-dialog').close(); askSequence(); }],
+      ['序列图集', '把动画铺成一张网格图，供 UE5 翻转书用。', '下载图集', function () { askSprite(); }],
       ['通道打包', '把不同图层分别写进 R / G / B / A，压成一张 PNG。', '打开设置', function () { $('ws-export-dialog').close(); openPack(); }],
       ['复制到剪贴板', '直接粘进引擎、聊天窗或文档里。', '复制', function () { copyToClipboard(); }]
     ];
@@ -1073,6 +1504,16 @@
         navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(function () { toast('已复制到剪贴板'); }, function () { toast('浏览器拒绝了剪贴板，请用「下载 PNG」'); });
       } else { toast('这个浏览器不支持直接复制，请用「下载 PNG」'); }
     }, 'image/png');
+  }
+  function askSequence() {
+    var n = parseInt(prompt('要导出多少帧？（建议 8–48；每帧是一张完整的 PNG）', '24') || '0', 10);
+    if (!n || n < 2) { if (n) toast('至少 2 帧'); return; }
+    if (n > 96) { toast('最多 96 帧（再多浏览器内存扛不住）'); return; }
+    var p = prompt('文件名前缀：', 'frame') || 'frame';
+    p = p.replace(/[^\w\-]/g, '') || 'frame';
+    var name = '序列帧 ' + n + ' 帧 · 生成中…';
+    toast(name);
+    exportSequence(n, p).then(function (done) { if (done) persist(); });
   }
   function askSprite() {
     var n = parseInt(prompt('要导出多少帧？', '16') || '0', 10);
@@ -1175,7 +1616,7 @@
      out(0,y) 与 out(w-1,y) 是同一个平均值 —— 也就是说平铺时左右/上下边界**在数学上完全相等**，
      接缝为 0（不是「看起来好一点」，是可测的 0 差）。
      代价：结果是四向对称的，细节会软一点，所以给了强度（amount）；amount<1 时接缝按 (1-amount) 残留。
-     原站这一步是送去后台生图 API 重画的，我们这里没有服务端，所以换成本地算法。 */
+     同类工具这一步通常是送去后台生图 API 重画的，我们这里没有服务端，所以换成本地算法。 */
   /** 纯函数：只吃 Uint8ClampedArray，不碰 canvas —— 自检能直接对它验数学 */
   function seamlessPixels(src, size, amount) {
     var out = new Uint8ClampedArray(src.length);
@@ -1375,6 +1816,8 @@
       return { mean: mean, std: Math.sqrt(varSum / out.length), min: Math.min.apply(null, out), max: Math.max.apply(null, out) };
     },
     presets: PRESETS.map(function (p) { return p.name; }),
+    categories: CATS.slice(),
+    ramps: Object.keys(RAMPS),
     stats: function () { return { layers: doc.layers.length, size: doc.size, selected: selId }; },
     applyPreset: function (name) {
       var p = PRESETS.filter(function (x) { return x.name === name; })[0];
@@ -1384,6 +1827,51 @@
     },
     exportPNG: exportPNG, exportNormal: exportNormal, exportPack: exportPack, encodePNG: encodePNG,
     applySeamless: applySeamless, seamlessPixels: seamlessPixels,
+    /** 自检用：造一个 zip 出来的字节（验证 zip 结构 + 能不能被真解压工具打开） */
+    zipBytes: function (entries) {
+      return zipStore(entries.map(function (e) {
+        return { name: e.name, data: new TextEncoder().encode(e.text) };
+      }));
+    },
+    zipInfo: function (bytes) {
+      var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      return { len: bytes.length, local: dv.getUint32(0, true), eocd: dv.getUint32(bytes.length - 22, true),
+        count: dv.getUint16(bytes.length - 22 + 10, true), cdSize: dv.getUint32(bytes.length - 22 + 12, true),
+        cdOffset: dv.getUint32(bytes.length - 22 + 16, true) };
+    },
+    postfxKeys: POSTFX.map(function (F) { return F.k; }),
+    /** 自检用：算某个生成器的场，跑一个后处理，报前后统计 + 不同取值个数 */
+    fxCheck: function (typeId, size, key, cfg) {
+      var T = TYPE_BY_ID[typeId];
+      var P = {}; T.params.forEach(function (p) { P[p.k] = p.def; });
+      var n = size || 48, f = new Float32Array(n * n);
+      for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) f[y * n + x] = T.fn(P, x / n, y / n, 0.3, 12345);
+      var stat = function (a) {
+        var sum = 0, i;
+        for (i = 0; i < a.length; i++) sum += a[i];
+        var m = sum / a.length, vs = 0;
+        for (i = 0; i < a.length; i++) { var d = a[i] - m; vs += d * d; }
+        var seen = {}, distinct = 0;
+        for (i = 0; i < a.length; i++) { var q = Math.round(a[i] * 255); if (!seen[q]) { seen[q] = 1; distinct++; } }
+        return { mean: m, std: Math.sqrt(vs / a.length), distinct: distinct };
+      };
+      var F = POSTFX_BY_KEY[key];
+      var use = {};
+      if (F) F.params.forEach(function (p) { use[p.k] = (cfg && cfg[p.k] !== undefined) ? cfg[p.k] : p.def; });
+      var out = F ? F.fn(f.slice(), n, use, 0.3, boxHelpers) : f;
+      return { before: stat(f), after: stat(out), n: n };
+    },
+    /** 自检用：量平铺接缝，验证「四方连续」开关真的起作用 */
+    tileSeam: function (typeId, tile, size) {
+      var T = TYPE_BY_ID[typeId];
+      var P = {}; T.params.forEach(function (p) { P[p.k] = p.def; });
+      var n = size || 64;
+      var f = renderField({ type: typeId, params: P, seed: 12345, tile: tile, fx: {} }, n, 0.3);
+      var sum = 0, cnt = 0;
+      for (var y = 0; y < n; y++) { sum += Math.abs(f[y * n] - f[y * n + n - 1]); cnt++; }
+      for (var x = 0; x < n; x++) { sum += Math.abs(f[x] - f[(n - 1) * n + x]); cnt++; }
+      return sum / cnt;
+    },
     /** 量接缝误差：返回 {before, after} —— 自检/验证用，无缝化到底有没有效看这个 */
     seamCheck: function (amount) {
       var size = doc.size;
