@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="特效贴图工坊：在浏览器里程序化生成噪波、集中线、冲击环、细胞、闪电等特效贴图，支持图层叠加、平铺检查，导出 PNG / 法线图 / 序列图集 / 通道打包。全程在本机完成。">
+<title>贴图工坊 · 特效评审台</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<!-- 主题必须在**首次绘制之前**同步定下来（和 index.html 同一套逻辑、同一个 key）。
+     为什么不能等脚本加载完：等它跑完页面早按白天画完了，用户会看到「先白一瞬再变黑」。 -->
+<style>
+  html[data-theme="light"]{background:#f6f7f9;color-scheme:light}
+  html[data-theme="dark"]{background:#0d1117;color-scheme:dark}
+</style>
+<script>
+(function () {
+  var theme = null;
+  try { theme = localStorage.getItem("vfx-theme"); } catch (e) { theme = null; }
+  if (theme !== "dark" && theme !== "light") {
+    theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  document.documentElement.dataset.theme = theme;
+})();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body class="ws-body">
+
+<header class="topbar">
+  <div class="brand">
+    <img class="logo-mark" src="./logo.svg" width="34" height="34" alt="">
+    <span>贴图工坊<span class="brand-sub">ASTERIUS · TEXTURE LAB</span></span>
+  </div>
+
+  <nav class="ws-nav" aria-label="站点导航">
+    <a href="./index.html">作品评审</a>
+    <a href="./workshop.html" aria-current="page">贴图工坊</a>
+  </nav>
+
+  <div class="topbar-right">
+    <button id="ws-undo" class="button secondary small" type="button" title="撤销 Ctrl+Z" disabled>撤销</button>
+    <button id="ws-redo" class="button secondary small" type="button" title="重做 Ctrl+Y" disabled>重做</button>
+    <button id="ws-help" class="button secondary small" type="button">使用说明</button>
+    <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
+    <button id="ws-export" class="button primary small" type="button">导出</button>
+  </div>
+</header>
+
+<main class="ws-main">
+
+  <section class="ws-quick" id="ws-quick">
+    <ol class="ws-steps">
+      <li><b>建图层</b><span>右栏新建 / 复制 / 排序；眼睛图标控制显示</span></li>
+      <li><b>选类型</b><span>左栏按分类浏览，缩略图就是真实渲染结果</span></li>
+      <li><b>调参数</b><span>拖滑杆，或直接在右边数字框里输精确值</span></li>
+      <li><b>查平铺</b><span>舞台上方的「平铺」切到 3×3，确认无缝</span></li>
+      <li><b>导出</b><span>PNG / 法线图 / 序列图集 / 通道打包</span></li>
+    </ol>
+    <button id="ws-quick-toggle" class="text-button" type="button">收起</button>
+  </section>
+
+  <div class="ws-layout">
+
+    <!-- ── 左：类型浏览器 ── -->
+    <aside class="ws-col ws-col-side">
+      <div class="ws-card ws-card-grow">
+        <div class="ws-card-head">
+          <h2>类型浏览器</h2>
+          <span class="ws-dim" id="ws-type-count">—</span>
+        </div>
+        <div class="ws-card-body ws-card-body-flush">
+          <div class="ws-browser-top">
+            <input id="ws-search" class="ws-input" type="search" placeholder="搜索类型或标签…" autocomplete="off">
+            <div class="ws-tabs" id="ws-cats" role="tablist"></div>
+          </div>
+          <div class="ws-thumbs" id="ws-thumbs"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── 中：舞台 ── -->
+    <section class="ws-col ws-col-stage">
+      <div class="ws-card ws-card-grow">
+        <div class="ws-stage-bar">
+          <div class="ws-seg" id="ws-bg" role="group" aria-label="背景">
+            <button type="button" data-v="transparent">透明</button>
+            <button type="button" data-v="black">黑底</button>
+            <button type="button" data-v="white">白底</button>
+          </div>
+          <div class="ws-seg" id="ws-tile" role="group" aria-label="平铺检查">
+            <button type="button" data-v="1">1×1</button>
+            <button type="button" data-v="2">2×2</button>
+            <button type="button" data-v="3">3×3</button>
+            <button type="button" data-v="4">4×4</button>
+          </div>
+          <div class="ws-seg" id="ws-zoom" role="group" aria-label="缩放">
+            <button type="button" data-v="fit">适应窗口</button>
+            <button type="button" data-v="1">100%</button>
+          </div>
+          <span class="ws-spacer"></span>
+          <button id="ws-copy" class="button secondary small" type="button" title="把当前画面复制到剪贴板">复制</button>
+        </div>
+
+        <div class="ws-stage" id="ws-stage">
+          <div class="ws-canvas-wrap" id="ws-canvas-wrap">
+            <canvas id="ws-canvas" width="512" height="512"></canvas>
+          </div>
+          <div class="ws-busy" id="ws-busy" hidden>正在渲染…</div>
+        </div>
+
+        <div class="ws-stage-foot">
+          <button id="ws-play" class="button secondary small" type="button" disabled>▶ 播放</button>
+          <input id="ws-time" class="ws-time" type="range" min="0" max="1" step="0.002" value="0" disabled>
+          <span class="ws-tval" id="ws-tval">t = 0.00 s</span>
+          <span class="ws-spacer"></span>
+          <span class="ws-dim" id="ws-perf">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 右：图层 + 参数 + 文档 ── -->
+    <aside class="ws-col ws-col-side">
+      <div class="ws-card">
+        <div class="ws-card-head">
+          <h2>图层</h2>
+          <span class="ws-head-actions">
+            <button id="ws-import" class="text-button" type="button">导入贴图</button>
+            <button id="ws-add" class="text-button" type="button">＋ 新建</button>
+          </span>
+        </div>
+        <ul class="ws-layers" id="ws-layers"></ul>
+        <input id="ws-file-image" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <input id="ws-file-doc" type="file" accept="application/json,.json" hidden>
+      </div>
+
+      <div class="ws-card">
+        <div class="ws-card-head">
+          <h2>图层参数</h2>
+          <button id="ws-reset-layer" class="text-button" type="button">重置本层</button>
+        </div>
+        <div class="ws-card-body" id="ws-params"></div>
+      </div>
+
+      <div class="ws-card">
+        <div class="ws-card-head"><h2>文档</h2></div>
+        <div class="ws-card-body">
+          <div class="ws-field">
+            <label for="ws-size">画布尺寸</label>
+            <select id="ws-size">
+              <option value="256">256 × 256</option>
+              <option value="512" selected>512 × 512</option>
+              <option value="1024">1024 × 1024</option>
+            </select>
+          </div>
+          <p class="ws-note">图层和参数会存进文档里，能存成文件、也能进分享链接。</p>
+          <div class="ws-btn-row">
+            <button id="ws-save" class="button secondary small" type="button">存文件</button>
+            <button id="ws-load" class="button secondary small" type="button">读文件</button>
+            <button id="ws-share" class="button secondary small" type="button">分享链接</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- ── 导出 ── -->
+<dialog id="ws-export-dialog" class="ws-dialog">
+  <div class="ws-dialog-head">
+    <div>
+      <h2>导出</h2>
+      <p>全部在你本机生成，不会上传任何东西。</p>
+    </div>
+    <button class="ws-dialog-x" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="ws-dialog-body" id="ws-export-list"></div>
+  <div class="ws-dialog-foot">
+    <button class="button secondary" type="button" data-close>关闭</button>
+  </div>
+</dialog>
+
+<!-- ── 通道打包 ── -->
+<dialog id="ws-pack-dialog" class="ws-dialog">
+  <div class="ws-dialog-head">
+    <div>
+      <h2>通道打包</h2>
+      <p>把不同图层分别写进 R / G / B / A，各占一张图。常用于打包「遮罩 + 溶解 + 发光 + 扰动」。</p>
+    </div>
+    <button class="ws-dialog-x" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="ws-dialog-body">
+    <div class="ws-pack-grid" id="ws-pack-grid"></div>
+    <p class="ws-note">A 通道按数据用，导出走的是自己写的无损 PNG 编码，不会因为画布预乘 alpha 而丢数据。</p>
+  </div>
+  <div class="ws-dialog-foot">
+    <button class="button secondary" type="button" data-close>取消</button>
+    <button id="ws-pack-go" class="button primary" type="button">生成并下载</button>
+  </div>
+</dialog>
+
+<!-- ── 使用说明 ── -->
+<dialog id="ws-help-dialog" class="ws-dialog ws-dialog-wide">
+  <div class="ws-dialog-head">
+    <div>
+      <h2>使用说明</h2>
+      <p>四步出图，全程离线。</p>
+    </div>
+    <button class="ws-dialog-x" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="ws-dialog-body ws-help-body">
+    <section>
+      <h3>1 · 建图层</h3>
+      <p>默认已经有一层。右栏可以新建、复制、上下移动、删除，点眼睛隐藏。选中哪一层，下面的参数面板就是哪一层。</p>
+    </section>
+    <section>
+      <h3>2 · 选类型</h3>
+      <p>左栏按分类浏览。缩略图是**真实渲染结果**，而且统一用灰度显示 —— 这样你看的是形状本身，不被颜色干扰。</p>
+    </section>
+    <section>
+      <h3>3 · 调参数</h3>
+      <p>滑杆右边的数字框可以直接输入精确值：回车或点别处生效，Esc 撤销本次输入，↑↓ 按步长微调。双击滑杆或数字可恢复该项默认值。数值会自动夹进允许范围并对齐步长。</p>
+      <p>着色有三档：<b>灰度</b>是原始明暗；<b>单色</b>直接染一个颜色；<b>色阶</b>把灰度映射成彩色（内置十几套）。勾上「亮度转透明」还会把亮暗变成透明度 —— 把黑底素材变透明底就靠它。</p>
+    </section>
+    <section>
+      <h3>4 · 查平铺</h3>
+      <p>舞台上方的「平铺」可以切成 2×2 / 3×3 / 4×4，一眼看出接缝。做无缝贴图时记得开着看。</p>
+    </section>
+    <section>
+      <h3>导出</h3>
+      <p>右上角「导出」可出 PNG、法线图（由灰度生成切线空间法线）、序列图集（按帧铺成网格，供 UE5 翻转书用）、通道打包。也可以直接「复制到剪贴板」粘进引擎或聊天窗。</p>
+    </section>
+    <section>
+      <h3>几个要点</h3>
+      <ul>
+        <li><b>叠加多层</b>才是出好图的关键：比如「集中线」配一层「噪波」用乘算，边缘立刻就碎了。</li>
+        <li><b>混合模式</b>里「相加」适合做发光，「正片叠底」适合做压暗与遮罩。</li>
+        <li><b>导入贴图</b>把本地图片当一层用（PNG / JPG / WebP），缩放位移旋转混合照常。</li>
+        <li><b>无缝化</b>（工具条里的按钮）用「偏移 + 边缘融合」把接缝抹掉，纯本地算法、瞬间出结果，不需要联网。</li>
+        <li>所有东西都在你本机算：<b>不上传、不联网、关掉网页就没了</b>（除非你存了文件）。</li>
+      </ul>
+    </section>
+  </div>
+  <div class="ws-dialog-foot">
+    <button class="button primary" type="button" data-close>知道了</button>
+  </div>
+</dialog>
+
+<footer class="site-foot">
+  <a href="./index.html">作品评审</a>
+  <span>·</span>
+  <a href="./updates.html">更新说明</a>
+  <span>·</span>
+  <span>贴图全部在本机生成，不上传</span>
+</footer>
+
+<script src="./workshop.js" defer></script>
+</body>
+</html>
