@@ -1405,10 +1405,287 @@
   var docCtx = docCanvas.getContext('2d');
   var imgCache = {};
 
+  /* ═══════════════ GPU 路径（WebGL2 片元着色器）═══════════════
+     为什么上 GPU：CPU 版一个 512² 图层要 25–240ms，拖滑杆顿；参考站那套手感好，
+     很大一部分就是因为它跑在 GPU 上。这里把**算灰度场**这一步搬到片元着色器，
+     做完 readPixels 交回原来的 CPU 管线（上色 / 后处理 / 图层 / 导出一律不动）——
+     所以不存在"推倒重来"，没移植的类型自动回落 CPU。 */
+  var GL = null;
+  var GL_PRELUDE = [
+    '#version 300 es',
+    'precision highp float;',
+    'out vec4 fragColor;',
+    'uniform vec2 uSize; uniform float uTime; uniform float uSeed; uniform float uTiling;',
+    'uniform float uP[16];',
+    'uniform vec4 uTfA; uniform vec2 uTfB;',       // sx, sy, rot, polar / ox, oy
+    '#define TAU 6.28318530718',
+    'float sat(float x){ return clamp(x, 0.0, 1.0); }',
+    'float sstep(float a, float b, float x){ float t = clamp((x - a) / (b - a + 1e-6), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }',
+    'float hash21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
+    'float h2(vec2 ip, float seed){ return hash21(ip + vec2(seed * 0.1271, seed * 0.3117)); }',
+    'vec2 grad2(vec2 ip, float seed){ float a = h2(ip, seed) * TAU; return vec2(cos(a), sin(a)); }',
+    'float pnoise(vec2 p, float per, float seed){',
+    '  vec2 i = floor(p), f = p - i;',
+    '  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);',
+    '  vec2 i0 = uTiling > 0.5 ? mod(i, per) : i;',
+    '  vec2 i1 = uTiling > 0.5 ? mod(i + vec2(1.0, 0.0), per) : i + vec2(1.0, 0.0);',
+    '  vec2 i2 = uTiling > 0.5 ? mod(i + vec2(0.0, 1.0), per) : i + vec2(0.0, 1.0);',
+    '  vec2 i3 = uTiling > 0.5 ? mod(i + vec2(1.0, 1.0), per) : i + vec2(1.0, 1.0);',
+    '  float n00 = dot(grad2(i0, seed), f);',
+    '  float n10 = dot(grad2(i1, seed), f - vec2(1.0, 0.0));',
+    '  float n01 = dot(grad2(i2, seed), f - vec2(0.0, 1.0));',
+    '  float n11 = dot(grad2(i3, seed), f - vec2(1.0, 1.0));',
+    '  return sat(mix(mix(n00, n10, u.x), mix(n01, n11, u.x), u.y) * 0.72 + 0.5);',
+    '}',
+    'float fbmG(vec2 p, float per, float oct, float seed, float gain){',
+    '  float s = 0.0, a = 0.5, n = 0.0, f = 1.0;',
+    '  for (int k = 0; k < 8; k++){',
+    '    if (float(k) >= oct) break;',
+    '    s += a * pnoise(p * f, per * f, seed + float(k) * 131.0);',
+    '    n += a; a *= gain; f *= 2.0;',
+    '  }',
+    '  return s / max(n, 1e-5);',
+    '}',
+    'float turbG(vec2 p, float per, float oct, float seed){',
+    '  float s = 0.0, a = 0.5, n = 0.0, f = 1.0;',
+    '  for (int k = 0; k < 8; k++){',
+    '    if (float(k) >= oct) break;',
+    '    s += a * abs(pnoise(p * f, per * f, seed + float(k) * 977.0) * 2.0 - 1.0);',
+    '    n += a; a *= 0.5; f *= 2.0;',
+    '  }',
+    '  return s / max(n, 1e-5);',
+    '}'
+  ].join('\n');
+  var GL_VERT = ['#version 300 es', 'in vec2 aPos;', 'void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }'].join('\n');
+
+  /* 每种类型的 GLSL 主体（函数名固定 gen，入参 uv 是 0..1）。
+     参数按该类型 params 的顺序取 uP[0..]，和 CPU 版一一对应 —— 方便对照验证。 */
+  var GLSL_BODY = {
+    starflare: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float a = atan(d.y, d.x) + uTime * uP[6] * TAU;\n' +
+      '  float n = max(2.0, floor(uP[0] + 0.5)); float seg = TAU / n;\n' +
+      '  float beta = mod(a, seg) - seg * 0.5;\n' +
+      '  float w = seg * uP[3];\n' +
+      '  float ang = exp(-(beta * beta) / (2.0 * w * w));\n' +
+      '  float idx = floor(mod(a / seg + 100.0, n));\n' +
+      '  float len = uP[2] * (1.0 - uP[5] + uP[5] * h2(vec2(idx, 7.0), uSeed));\n' +
+      '  float rad = pow(sstep(0.0, 1.0, sat(1.0 - r / max(len, 1e-4))), uP[4]);\n' +
+      '  float core = exp(-(r * r) / (2.0 * uP[1] * uP[1]));\n' +
+      '  return sat(max(ang * rad, core));\n' +
+      '}',
+    flash: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0; float a = atan(d.y, d.x);\n' +
+      '  float pul = 1.0 + uP[4] * 0.45 * sin(uTime * TAU * 2.0);\n' +
+      '  float n = max(2.0, floor(uP[1] + 0.5)); float seg = TAU / n;\n' +
+      '  float beta = mod(a, seg) - seg * 0.5; float w = seg * 0.09;\n' +
+      '  float spike = n > 1.0 ? exp(-(beta * beta) / (2.0 * w * w)) : 0.0;\n' +
+      '  float R = (uP[0] + uP[2] * spike) * pul;\n' +
+      '  float v = pow(sstep(0.0, 1.0, sat(1.0 - r / max(R, 1e-4))), uP[3]);\n' +
+      '  float c = uP[0] * pul;\n' +
+      '  return sat(max(v, exp(-(r * r) / (2.0 * c * c))));\n' +
+      '}',
+    glow: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float n = uP[3] > 0.0 ? fbmG(uv * uP[4], uP[4], 4.0, uSeed, 0.5) : 0.5;\n' +
+      '  float rr = r / (1.0 + uP[3] * (n - 0.5) * 1.1);\n' +
+      '  float v = pow(max(0.0, 1.0 - rr), uP[1]);\n' +
+      '  v = max(v, max(0.0, 1.0 - rr / max(uP[0], 1e-4)));\n' +
+      '  if (uP[2] > 0.0) v = max(v, uP[2] * max(0.0, 1.0 - abs(rr - 0.6) / 0.14));\n' +
+      '  return sat(v);\n' +
+      '}',
+    flare: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[4]); float ca = cos(a), sa = sin(a);\n' +
+      '  vec2 d = uv - 0.5; vec2 q = vec2(d.x * ca + d.y * sa, -d.x * sa + d.y * ca);\n' +
+      '  float r = length(d) * 2.0;\n' +
+      '  float fl = 1.0 + uP[5] * 0.5 * sin(uTime * TAU * 3.0 + mod(uSeed, 7.0));\n' +
+      '  float outv = max(0.0, 1.0 - r / max(uP[0] * fl, 1e-4));\n' +
+      '  if (uP[1] > 0.0) {\n' +
+      '    float band = pow(max(0.0, 1.0 - abs(q.y) * 7.0), 2.5) * pow(max(0.0, 1.0 - abs(q.x) / (0.5 * uP[1] + 0.04)), 1.4);\n' +
+      '    outv = max(outv, band);\n' +
+      '  }\n' +
+      '  if (uP[2] > 0.0) outv = max(outv, uP[2] * max(0.0, 1.0 - abs(r - 0.52) / 0.17));\n' +
+      '  if (uP[3] > 0.0) outv = max(outv, uP[3] * 0.75 * max(0.0, 1.0 - abs(r - 0.86) / 0.1));\n' +
+      '  return sat(outv);\n' +
+      '}',
+    glare: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[4]); vec2 d = uv - 0.5;\n' +
+      '  float cs = cos(a), sn = sin(a);\n' +
+      '  float u = d.x * cs + d.y * sn, v = -d.x * sn + d.y * cs;\n' +
+      '  if (uP[5] > 0.0) u += sin(v * 9.0 + uTime * TAU) * uP[5] * 0.03;\n' +
+      '  float band = pow(max(0.0, 1.0 - abs(v) / uP[1]), 2.0) * pow(max(0.0, 1.0 - abs(u) / (uP[0] * 0.5)), 1.2);\n' +
+      '  float core = pow(max(0.0, 1.0 - length(d) * 2.0 / max(uP[2], 1e-4)), 1.5);\n' +
+      '  float diag = 0.0;\n' +
+      '  if (uP[3] > 0.0) {\n' +
+      '    float a2 = a + 0.6; float u2 = d.x * cos(a2) + d.y * sin(a2), v2 = -d.x * sin(a2) + d.y * cos(a2);\n' +
+      '    diag = uP[3] * pow(max(0.0, 1.0 - abs(v2) / 0.05), 2.0) * pow(max(0.0, 1.0 - abs(u2) / 0.6), 1.5);\n' +
+      '  }\n' +
+      '  return sat(max(core, max(band, diag)));\n' +
+      '}',
+    petals: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float a = atan(d.y, d.x) + uTime * uP[3] * TAU;\n' +
+      '  float rm = uP[2] * pow(abs(cos(a * uP[0] * 0.5)), uP[1]);\n' +
+      '  return sat(sstep(-uP[4], uP[4], rm - r));\n' +
+      '}',
+    polygon: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d);\n' +
+      '  float a = atan(d.y, d.x) - uTime * uP[4] * TAU;\n' +
+      '  float n = max(3.0, floor(uP[0] + 0.5)); float seg = TAU / n;\n' +
+      '  float beta = abs(mod(a, seg) - seg * 0.5);\n' +
+      '  float R = uP[1] * 0.5;\n' +
+      '  float rb = R * cos(seg * 0.5) / max(0.15, cos(beta));\n' +
+      '  float v = sstep(-uP[5], uP[5], rb - r);\n' +
+      '  if (uP[3] < 1.0) v = mix(v, sstep(uP[1] * 0.07 + 0.004, 0.0, abs(r - rb)), 1.0 - uP[3]);\n' +
+      '  return sat(pow(sat(v), 1.0 / (0.4 + uP[2] * 2.0)));\n' +
+      '}',
+    star: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d);\n' +
+      '  float a = atan(d.y, d.x) + uTime * uP[4] * TAU;\n' +
+      '  float n = max(3.0, floor(uP[0] + 0.5)); float seg = TAU / n;\n' +
+      '  float k = fract(a / seg);\n' +
+      '  float R = uP[1] * 0.5, RI = R * uP[2];\n' +
+      '  float rb = k < 0.5 ? mix(R, RI, k / 0.5) : mix(RI, R, (k - 0.5) / 0.5);\n' +
+      '  float v = sstep(-uP[5], uP[5], rb - r);\n' +
+      '  if (uP[3] < 1.0) v = mix(v, sstep(uP[1] * 0.06 + 0.004, 0.0, abs(r - rb)), 1.0 - uP[3]);\n' +
+      '  return sat(v);\n' +
+      '}'
+  };
+
+  function glInit() {
+    if (GL !== null) return !!GL;
+    GL = false;
+    try {
+      var c = document.createElement('canvas');
+      var gl = c.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
+      if (!gl) return false;
+      var vs = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vs, GL_VERT); gl.compileShader(vs);
+      if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) return false;
+      var prog0 = gl.createProgram(); gl.attachShader(prog0, vs); gl.linkProgram(prog0);
+      var buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      var loc = gl.getAttribLocation(prog0, 'aPos');
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      GL = { gl: gl, vs: vs, buf: buf, prog0: prog0, progs: {}, tex: null, fbo: null, texSize: 0, texW: 0, u8: false, rtype: 0, bad: {} };
+      return true;
+    } catch (e) { GL = false; return false; }
+  }
+  function glProgram(type) {
+    if (GL.progs[type.id]) return GL.progs[type.id];
+    if (GL.bad[type.id]) return null;
+    var gl = GL.gl;
+    var body = GLSL_BODY[type.id];
+    var src = GL_PRELUDE + '\n' + body + '\n' +
+      'void main(){ vec2 uv = gl_FragCoord.xy / uSize;\n' +
+      '  if (uTfA.w > 0.5) { vec2 d = uv - 0.5; float pr = length(d) * 2.0; float pa = atan(d.y, d.x) / TAU + 0.5; uv = vec2(pa, pr); }\n' +
+      '  uv = (uv - 0.5) / vec2(max(uTfA.x, 1e-3), max(uTfA.y, 1e-3));\n' +
+      '  if (abs(uTfA.z) > 1e-5) { float ca = cos(-uTfA.z), sa = sin(-uTfA.z); vec2 dd = uv - 0.5; uv = vec2(dd.x * ca - dd.y * sa, dd.x * sa + dd.y * ca) + 0.5; }\n' +
+      '  uv = uv + vec2(0.5 - uTfB.x, 0.5 - uTfB.y);\n' +
+      '  if (uTiling > 0.5) uv = fract(uv);\n' +
+      '  else if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { fragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }\n' +
+      '  float v = gen(uv);\n' +
+      '  fragColor = vec4(sat(v), 0.0, 0.0, 1.0);\n' +
+      '}';
+    var fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, src); gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+      GL.bad[type.id] = gl.getShaderInfoLog(fs) || 'compile failed';
+      GL.progs[type.id] = null;
+      return null;
+    }
+    var pr = gl.createProgram();
+    gl.attachShader(pr, GL.vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { GL.bad[type.id] = 'link failed'; GL.progs[type.id] = null; return null; }
+    var u = {};
+    ['uSize', 'uTime', 'uSeed', 'uTiling', 'uP', 'uTfA', 'uTfB'].forEach(function (n) { u[n] = gl.getUniformLocation(pr, n); });
+    GL.progs[type.id] = { pr: pr, u: u };
+    return GL.progs[type.id];
+  }
+  /** 用 GPU 算一个图层的灰度场；失败返回 null（调用方回落 CPU） */
+  function glField(layer, size, t) {
+    var T = TYPE_BY_ID[layer.type];
+    if (!T || !GLSL_BODY[T.id] || !glInit()) return null;
+    var P = glProgram(T);
+    if (!P) return null;
+    var gl = GL.gl;
+    if (GL.texSize !== size || GL.texW !== size) {
+      if (GL.tex) { gl.deleteTexture(GL.tex); gl.deleteFramebuffer(GL.fbo); GL.tex = null; }
+      // 格式降级链：软件渲染器上 RGBA32F 帧缓冲经常不完整，一路降到 RGBA8
+      var cands = [{ i: gl.RGBA32F, t: gl.FLOAT, u8: false }, { i: gl.RGBA16F, t: gl.HALF_FLOAT, u8: false }, { i: gl.RGBA8, t: gl.UNSIGNED_BYTE, u8: true }];
+      var made = null;
+      for (var ci = 0; ci < cands.length; ci++) {
+        var cd = cands[ci];
+        if (!cd.i) continue;
+        var tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, cd.i, size, size, 0, gl.RGBA, cd.u8 ? gl.UNSIGNED_BYTE : gl.FLOAT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        var fbo = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE) { made = { tex: tex, fbo: fbo, u8: cd.u8, t: cd.t }; break; }
+        gl.deleteTexture(tex); gl.deleteFramebuffer(fbo);
+      }
+      if (!made) { GL.bad[T.id] = 'fbo 全部格式都不完整'; return null; }
+      GL.tex = made.tex; GL.fbo = made.fbo; GL.u8 = made.u8; GL.rtype = made.t; GL.texSize = size; GL.texW = size;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, GL.fbo);
+    gl.viewport(0, 0, size, size);
+    gl.useProgram(P.pr);
+    // 顶点属性必须按「当前程序」重新绑一次：不同程序里 aPos 的位置可能不一样（踩过，画面全黑）
+    gl.bindBuffer(gl.ARRAY_BUFFER, GL.buf);
+    var aloc = gl.getAttribLocation(P.pr, 'aPos');
+    if (aloc >= 0) { gl.enableVertexAttribArray(aloc); gl.vertexAttribPointer(aloc, 2, gl.FLOAT, false, 0, 0); }
+    gl.uniform2f(P.u.uSize, size, size);
+    gl.uniform1f(P.u.uTime, t);
+    gl.uniform1f(P.u.uSeed, layer.seed | 0);
+    gl.uniform1f(P.u.uTiling, layer.tile !== false ? 1 : 0);
+    var arr = new Float32Array(16);
+    T.params.forEach(function (pp, i) { if (i < 16) arr[i] = (layer.params && layer.params[pp.k] !== undefined) ? layer.params[pp.k] : pp.def; });
+    gl.uniform1fv(P.u.uP, arr);
+    var tf = layer.tf || {};
+    gl.uniform4f(P.u.uTfA, tf.sx === undefined ? 1 : tf.sx, tf.sy === undefined ? 1 : tf.sy, (tf.rot || 0) * Math.PI / 180, tf.polar ? 1 : 0);
+    gl.uniform2f(P.u.uTfB, tf.ox || 0, tf.oy || 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    var f = new Float32Array(size * size);
+    if (GL.u8) {
+      var b8 = new Uint8Array(size * size * 4);
+      gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, b8);
+      for (var i2 = 0; i2 < f.length; i2++) f[i2] = b8[i2 * 4] / 255;
+    } else if (GL.rtype === gl.HALF_FLOAT) {
+      var b16 = new Uint16Array(size * size * 4);
+      gl.readPixels(0, 0, size, size, gl.RGBA, gl.HALF_FLOAT, b16);
+      for (var i3 = 0; i3 < f.length; i3++) {   // 半精度 → float（够用，且比 8 位细）
+        var hv = b16[i3 * 4], sgn = (hv & 0x8000) ? -1 : 1, ex = (hv >> 10) & 0x1f, mn = hv & 0x3ff;
+        f[i3] = sgn * (ex === 0 ? mn / 1024 * Math.pow(2, -14) : Math.pow(2, ex - 15) * (1 + mn / 1024));
+      }
+    } else {
+      var out = new Float32Array(size * size * 4);
+      gl.readPixels(0, 0, size, size, gl.RGBA, gl.FLOAT, out);
+      for (var i4 = 0; i4 < f.length; i4++) f[i4] = out[i4 * 4];
+    }
+    return f;
+  }
+  function glReady() { return glInit(); }
+  function glTypes() { return Object.keys(GLSL_BODY); }
+
   /** 只算灰度场（0..1），不碰颜色 —— 后处理和自检都吃这个 */
+  var lastPath = 'CPU', forceCpu = false;
   function renderField(layer, size, t) {
     var T = TYPE_BY_ID[layer.type];
     if (!T) return null;
+    // 先试 GPU：只把「算灰度场」搬过去，算完读回字节流，后面所有处理照旧
+    if (!forceCpu) {
+      var g = glField(layer, size, t);
+      if (g) { lastPath = 'GPU'; return applyPostFx(g, size, layer.fx, t); }
+    }
+    lastPath = 'CPU';
     var fn = T.fn, P = layer.params, seed = layer.seed | 0;
     TILING = layer.tile !== false;
     // 每层变换：把输出像素映射回「源坐标」再采样。这样**任何生成器**都能缩放 / 旋转 / 位移 / 极坐标
@@ -2163,7 +2440,8 @@
       ctx.drawImage(src, i * doc.size, j * doc.size);
     }
     applyZoom(false);                 // 只套缓存比例，不重新测量（否则调参数预览会跳）
-    $('ws-perf').textContent = '渲染 ' + (performance.now() - t0).toFixed(0) + ' ms · ' + doc.size + '×' + doc.size + (tileN > 1 ? ' × ' + tileN + '×' + tileN : '');
+    $('ws-perf').textContent = '渲染 ' + (performance.now() - t0).toFixed(0) + ' ms · ' + doc.size + '×' + doc.size
+      + (tileN > 1 ? ' × ' + tileN + '×' + tileN : '') + (lastPath === 'GPU' ? ' · GPU' : ' · CPU');
   }
 
   /* ───────────────────────────── 类型浏览器 ───────────────────────────── */
@@ -2923,6 +3201,52 @@
     applySeamless: applySeamless, seamlessPixels: seamlessPixels,
     /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
     sheetLayout: sheetLayout,
+    gpuTypes: function () { return glTypes(); },
+    gpuDiag: function () {
+      var ready = glInit();
+      var out = { ready: !!ready, bad: {}, u8: ready ? GL.u8 : null, fmt: ready ? GL.rtype : null };
+      if (ready) {
+        glTypes().forEach(function (id) {
+          var T = TYPE_BY_ID[id];
+          if (!T) return;
+          var p = glProgram(T);
+          if (!p) out.bad[id] = (GL.bad[id] || 'unknown');
+        });
+      }
+      return out;
+    },
+    /** 对比 GPU 与 CPU 两条路：像素差 + 圆周剖面（验证着色器复现了 CPU 的画面） */
+    gpuCompare: function (typeId, size) {
+      var T = TYPE_BY_ID[typeId], P = {};
+      T.params.forEach(function (p) { P[p.k] = p.def; });
+      var n = size || 128;
+      var base = { type: typeId, params: P, seed: 12345, tile: true, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } };
+      var g = glField(base, n, 0.3);
+      forceCpu = true;
+      var c = renderField(base, n, 0.3);
+      forceCpu = false;
+      if (!g || !c) return null;
+      var diff = 0;
+      for (var i = 0; i < c.length; i++) diff += Math.abs(g[i] - c[i]);
+      var prof = function (arr, rad) {
+        var out = [], cnt = 360;
+        for (var k = 0; k < cnt; k++) {
+          var a = k / cnt * TAU;
+          var x = Math.round((0.5 + Math.cos(a) * rad * 0.5) * n), y = Math.round((0.5 + Math.sin(a) * rad * 0.5) * n);
+          x = clamp(x, 0, n - 1); y = clamp(y, 0, n - 1);
+          out.push(arr[y * n + x]);
+        }
+        return out;
+      };
+      var pg = prof(g, 0.35), pc = prof(c, 0.35), sum = 0, peaks = 0;
+      for (var j = 0; j < pg.length; j++) {
+        sum += pg[j];
+        var pv = pg[(j - 1 + pg.length) % pg.length], nx = pg[(j + 1) % pg.length];
+        if (pg[j] > 0.25 && pg[j] >= pv && pg[j] > nx) peaks++;
+      }
+      var sumC = 0; for (var m = 0; m < pc.length; m++) sumC += pc[m];
+      return { diff: diff / c.length, gpuMean: sum / pg.length, cpuMean: sumC / pc.length, gpuPeaks: peaks, n: n };
+    },
     /** 自检用：沿一个圆周采样某个生成器，用来验「射线是细的」还是「胖花瓣」 */
     rayProfile: function (typeId, samples, radius) {
       var T = TYPE_BY_ID[typeId], P = {};
