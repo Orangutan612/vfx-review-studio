@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+<script src="./frame-guard.js?v=1791745037458"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="内嵌的第三方贴图生成器 TextureCreate，附原文↔中文对照表。">
@@ -20,7 +21,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791744059936">
+<link rel="stylesheet" href="./style.css?v=1791745037458">
 </head>
 <body>
 
@@ -54,20 +55,11 @@
     </div>
   </div>
 
-  <div class="lab-sources">
-    <button class="lab-src is-active" type="button" data-url="https://gameanimation.info/texture-create/" data-name="TextureCreate">
-      TextureCreate<span>gameanimation.info</span>
-    </button>
-    <button class="lab-src" type="button" data-url="https://vfxmento.xyz/%E8%B4%B4%E5%9B%BE%E5%B7%A5%E5%9D%8A/" data-name="贴图工坊">
-      贴图工坊<span>vfxmento.xyz</span>
-    </button>
-  </div>
-
   <div class="lab-embed">
     <iframe id="lab-frame" src="https://gameanimation.info/texture-create/" title="TextureCreate"
       referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen" loading="eager"></iframe>
   </div>
-  <p class="lab-fallback">如果上面这块一直是空白，说明对方不允许被内嵌（部分站点会禁止），或者这个网络访问不到它。点右上角「新窗口打开 ↗」直接用。</p>
+  <p class="lab-fallback">如果上面这块是空白、或者写着「<b>拒绝连接</b>」—— 那是<strong>对方站点不允许被别的网页内嵌</strong>（很多站点用 <code>X-Frame-Options</code> / <code>frame-ancestors</code> 挡掉 iframe），也可能是当前网络到不了它。<b>这不是本站的问题</b>，点右上角「新窗口打开 ↗」就能正常用。</p>
 
   <section class="lab-guide">
     <h2>原文 ↔ 中文 对照表</h2>
