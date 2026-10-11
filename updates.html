@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="特效评审台更新说明：新增贴图工坊、站点标识重做、自检扩容。">
+<meta name="description" content="特效评审台更新说明：新增贴图台、站点标识重做、自检扩容。">
 <title>更新说明 · 特效评审台</title>
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <!-- 主题在样式表之前同步定下来（和首页同一套逻辑、同一个 key），否则会先白一瞬 -->
@@ -32,7 +32,7 @@
   </div>
   <nav class="ws-nav" aria-label="站点导航">
     <a href="./index.html">作品评审</a>
-    <a href="./workshop.html">贴图工坊</a>
+    <a href="./workshop.html">贴图台</a>
     <a href="./updates.html" aria-current="page">更新说明</a>
   </nav>
   <div class="topbar-right">
@@ -44,29 +44,46 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.2.1</h1>
-    <p class="upd-lead">贴图工坊补上 <strong>无缝化</strong>（实测接缝误差 9.52 → 0.00）；仓库首页的 <strong>README</strong> 现在会跟着部署一起更新了。</p>
+    <h1>v1.3.0</h1>
+    <p class="upd-lead">贴图台补上 <strong>后处理 11 项</strong>（像素化 / 万花筒 / 漩涡 / 模糊 / 泛光 / 锐化 / 边缘检测 / 阶调化 / 暗角 / 扫描线 / 径向遮罩）和 <strong>四方连续开关</strong>，并正式改名为「贴图台」。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.2.1</h2><span class="ws-dim">小更新</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.3.0</h2><span class="ws-dim">大更新</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
-        <li><b>贴图工坊 · 无缝化</b><span>把画面和它的四向镜像做加权平均，强度拉满时平铺边界在数学上完全相等（左右 / 上下边界取到的是同一个平均值）。实测接缝误差 <b>9.52 → 0.00</b>；强度 0.75 时残留正好 0.25 倍。结果是新图层，原图保留。</span></li>
-        <li><b>仓库首页的 README 会跟着更新了</b><span>以前部署只上传 public/ 里的东西，仓库根的 README 一直是 GitHub 建仓库时自动生成的那 84 字节，改本地 README 也没用。现在部署会把它一起推上去 —— 仍然只多这一个文件，.env / reference / server 照旧不上传，而且上传前会先扫一遍有没有 Key。</span></li>
-        <li><b>版本号一条命令改全</b><span>node tools/bump-version.mjs minor|patch|major 一次改全四处（package.json / version.json / 更新说明 / 维护说明）；--check 只看是否一致。任何一处对不上会直接报错，不会静默少改。</span></li>
-        <li><b>修正了几处写错的数字</b><span>贴图工坊的分类是 <b>7</b> 个（不是 8），混合模式 <b>13</b> 种（不是 12）；维护说明里凡是写数字的地方都重新量过。</span></li>
+        <li><b>后处理 11 项（新）</b><span>像素化 / 万花筒 / 漩涡 / 模糊 / 泛光 / 锐化 / 边缘检测 / 阶调化 / 暗角 / 扫描线 / 径向遮罩。每项可单独开关、单独调参，按「几何 → 卷积 → 调色」的顺序作用在<strong>形状做完之后</strong> —— 实测这一步对成图质量的影响比换生成器还大。</span></li>
+        <li><b>四方连续开关（新）</b><span>每一层都能单独关掉「四方连续」。开着时噪波按边界对齐，关掉用普通哈希、接缝不再对齐。实测接缝差：分形噪波 0.021 → 0.141，云絮 0.045 → 0.504（关掉后扩大 6~11 倍）。</span></li>
+        <li><b>改名：贴图台</b><span>原来叫「贴图工坊」，现在改叫「贴图台」—— 和「评审台」凑成一套。网址没变，还是 /workshop.html。</span></li>
+        <li><b>序列帧导出（新）</b><span>把动画按帧导出成编号 PNG（frame_0001.png…）并打包成一个 zip —— AE / UE5 / Nuke 直接吃，带完整透明通道。比 GIF 实用：GIF 只有 1 位透明、最多 256 色，喂引擎是不够用的。</span></li>
+        <li><b>收藏 / 最近（新）</b><span>常用的生成器点右上角的星标收藏，类型浏览器多了「收藏」「最近」两个筛选。</span></li>
+        <li><b>图片图层支持变换</b><span>导入自己的图片当图层之后，可以缩放 / 左右位移 / 上下位移 / 旋转 / 水平翻转 / 垂直翻转，等比不拉变形。</span></li>
+        <li><b>生成器 20 → 24 个，分类 7 → 11 类</b><span>补了「放射 / 环形 / 自然现象 / 数字」四类：花瓣、同心环、水波、电路。色标从 12 套加到 16 套（日落 / 深海 / 血月 / 薄荷）。</span></li>
       </ul>
     </div>
   </section>
 
-  <h2 class="upd-sep">上一版 · v1.2.0</h2>
+  <h2 class="upd-sep">上一版 · v1.2.1</h2>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>新增 · 贴图工坊</h2><span class="ws-dim">/workshop.html</span></div>
+    <div class="ws-card-head"><h2>无缝化 / README / 版本号工具</h2></div>
     <div class="ws-card-body">
-      <p class="upd-p">一个在浏览器里跑的特效贴图生成器，用来做爆发、拖尾、溶解、闪电、裂纹这类要喂给引擎的图。入口在顶栏右侧的「贴图工坊」。</p>
+      <ul class="upd-list">
+        <li><b>贴图台 · 无缝化</b><span>把画面和它的四向镜像做加权平均，强度拉满时平铺边界在数学上完全相等（左右 / 上下边界取到的是同一个平均值）。实测接缝误差 <b>9.52 → 0.00</b>；强度 0.75 时残留正好 0.25 倍。结果是新图层，原图保留。</span></li>
+        <li><b>仓库首页的 README 会跟着更新了</b><span>以前部署只上传 public/ 里的东西，仓库根的 README 一直是 GitHub 建仓库时自动生成的那 84 字节，改本地 README 也没用。现在部署会把它一起推上去 —— 仍然只多这一个文件，.env / reference / server 照旧不上传，而且上传前会先扫一遍有没有 Key。</span></li>
+        <li><b>版本号一条命令改全</b><span>node tools/bump-version.mjs minor|patch|major 一次改全四处（package.json / version.json / 更新说明 / 维护说明）；--check 只看是否一致。任何一处对不上会直接报错，不会静默少改。</span></li>
+        <li><b>修正了几处写错的数字</b><span>贴图台的分类是 <b>7</b> 个（不是 8），混合模式 <b>13</b> 种（不是 12）；维护说明里凡是写数字的地方都重新量过。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">更早 · v1.2.0</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>新增 · 贴图台</h2><span class="ws-dim">/workshop.html</span></div>
+    <div class="ws-card-body">
+      <p class="upd-p">一个在浏览器里跑的特效贴图生成器，用来做爆发、拖尾、溶解、闪电、裂纹这类要喂给引擎的图。入口在顶栏右侧的「贴图台」。</p>
       <ul class="upd-list">
         <li><b>20 个生成器 / 7 个分类</b><span>噪波（分形噪波 · 云絮 · 湍流 · 大理石）、扭曲（漩涡）、径向（集中线 · 光芒 · 冲击环）、网格（棋盘 · 点阵 · 条纹 · 蜂窝）、有机（细胞 · 裂纹 · 划痕）、能量（闪电 · 等离子 · 溶解）、基础（渐变 · 颗粒）。</span></li>
         <li><b>图层叠加</b><span>新建 / 复制 / 排序 / 显隐，13 种混合模式 + 不透明度，也能导入自己的图片当一层。</span></li>
@@ -93,22 +110,11 @@
     </div>
   </section>
 
-  <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>内部 · 工程</h2><span class="ws-dim">自检 188 → 199 项</span></div>
-    <div class="ws-card-body">
-      <ul class="upd-list">
-        <li><b>自检新增第 21 节</b><span>给浏览器页面做了一套最小 DOM 桩，把贴图工坊的脚本在 Node 里真跑一遍，再逐个生成器验「出图且不是纯色」——以后谁改坏一个生成器，跑一次自检就红灯。</span></li>
-        <li><b>维护说明新增两条坑</b><span>第 23 条「白色笔刷其实是透明挖空，别拿预览图猜 alpha」；第 24 条「搬到链接版的功能不许偷偷依赖服务端」。</span></li>
-        <li><b>部署提交信息带版本号</b><span>仓库历史里每次提交会写明「v1.2.1 更新 public/xxx」，方便回溯。</span></li>
-      </ul>
-    </div>
-  </section>
-
   <section class="ws-card upd-card upd-next">
     <div class="ws-card-head"><h2>还没做 / 已知取舍</h2></div>
     <div class="ws-card-body">
       <ul class="upd-list">
-        <li><b>GIF 动图导出</b><span>暂时没做（要自己写 GIF 编码器）。动画先用「序列图集」导出，用途是一样的。</span></li>
+        <li><b>动画导出走「序列帧」不走 GIF</b><span>GIF 只有 1 位透明和 256 色，喂引擎不够用；所以做的是序列帧（编号 PNG 打包 zip）和序列图集。需要 GIF 的话，用序列帧在 AE / PS 里转一下就有一份质量更好的。</span></li>
         <li><b>模型服务商的 CORS 差异</b><span>链接版由浏览器直连模型服务，所以对方必须放行跨域。实测可用：DeepSeek / 通义百炼 / 智谱 / 火山方舟。</span></li>
         <li><b>github.io 在国内访问不稳定</b><span>这是托管位置的固有限制，不是代码问题。本地版可以当兜底。</span></li>
       </ul>
@@ -120,7 +126,7 @@
   <footer class="site-foot">
     <a href="./index.html">作品评审</a>
     <span>·</span>
-    <a href="./workshop.html">贴图工坊</a>
+    <a href="./workshop.html">贴图台</a>
     <span>·</span>
     <span>作品视频与素材从不离开本机</span>
   </footer>
