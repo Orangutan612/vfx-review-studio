@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="内嵌的第三方贴图生成器 TextureCreate，附中文位置对照与使用建议。">
+<meta name="description" content="内嵌的第三方贴图生成器 TextureCreate，附原文↔中文对照表。">
 <title>贴图工具 · 特效评审台</title>
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <style>
@@ -20,7 +20,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791742310163">
+<link rel="stylesheet" href="./style.css?v=1791743059635">
 </head>
 <body>
 
@@ -44,8 +44,8 @@
   <div class="lab-bar">
     <div class="lab-bar-text">
       <strong>TextureCreate</strong><span class="lab-badge">第三方 · 内嵌</span>
-      <p>来自 gameanimation.info 的贴图生成器。这里是<strong>内嵌引用</strong>：代码和内容都是他们的，我们没有改动、也没有复制到本站。
-        国内直连通常需要代理；本机的「<a href="./workshop.html">贴图台</a>」是离线备用。</p>
+      <p>来自 gameanimation.info 的贴图生成器。<strong>内嵌引用</strong>：代码和内容都是他们的，我们没有改动、也没有复制到本站。
+        国内直连通常需要代理。它自己带 <code>EN</code> 按钮可以切换英 / 日界面。</p>
     </div>
     <div class="lab-bar-acts">
       <button id="lab-reload" class="button secondary small" type="button">重新载入</button>
@@ -54,40 +54,77 @@
     </div>
   </div>
 
-  <div class="lab-layout">
-    <aside class="lab-guide">
-      <h2>这块界面里有什么</h2>
-      <p class="lab-note">对方界面里的文字是英文 / 日文，而<strong>内嵌的页面我们改不了</strong>（浏览器同源策略：跨域 iframe 的内容不允许被外部修改）。
-        所以下面这份是<strong>位置对照</strong>——按它的界面结构整理的，帮你快速找到东西在哪。</p>
-      <ul class="lab-list">
-        <li><b>类型浏览器</b><span>分类、搜索、收藏、标签筛选、缩略图网格。左边那一列（或顶部）就是。</span></li>
-        <li><b>图层栏</b><span>新建 / 显示隐藏 / 重命名 / 缩略图，一层叠一层。</span></li>
-        <li><b>参数区</b><span>可折叠分区，每行是「滑块 + 数字框」。数字框能直接输入精确值。</span></li>
-        <li><b>渐变色阶编辑器</b><span>一条色带 + 可拖动的色标，能加色标、删色标、存成预设。</span></li>
-        <li><b>导出</b><span>序列图（精灵表，带预览）· 通道打包（R/G/B/A 各取一张）· 预设库。</span></li>
-        <li><b>快速开始</b><span>一个预设画廊，点一张卡片就能套一套参数。</span></li>
-      </ul>
-      <h2>建议的用法</h2>
-      <ol class="lab-steps">
-        <li>先挑类型（分类里点），别一上来就调参数。</li>
-        <li>调参数时**先看整体形状**，形状对了再调明暗和细节。</li>
-        <li>导出前用平铺检查看一眼接缝，再做序列图 / 通道打包。</li>
-        <li>做好的参数存进预设库，下次直接套。</li>
-      </ol>
-      <p class="lab-note">本机「贴图台」同样有这些功能（类型浏览器 / 图层 / 可折叠参数 / 色阶编辑器 / 翻转书 / 通道打包 / 我的预设），
-        而且 <strong>不联网、不登录也能用</strong>——网络到不了这边时用它。</p>
-    </aside>
-
-    <div class="lab-embed-pane">
-      <div class="lab-embed">
-        <iframe id="lab-frame" src="https://gameanimation.info/texture-create/" title="TextureCreate"
-          referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen" loading="eager"></iframe>
-      </div>
-      <div class="lab-fallback">
-        <p><b>如果上面这块一直是空白</b>，说明对方不允许被内嵌（部分站点会禁止），或者这个网络访问不到它。点右上角「新窗口打开 ↗」直接用。</p>
-      </div>
-    </div>
+  <div class="lab-embed">
+    <iframe id="lab-frame" src="https://gameanimation.info/texture-create/" title="TextureCreate"
+      referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen" loading="eager"></iframe>
   </div>
+  <p class="lab-fallback">如果上面这块一直是空白，说明对方不允许被内嵌（部分站点会禁止），或者这个网络访问不到它。点右上角「新窗口打开 ↗」直接用。</p>
+
+  <section class="lab-guide">
+    <h2>原文 ↔ 中文 对照表</h2>
+    <p class="lab-note">它界面上是<strong>日文 + 英文</strong>混着的。跨域 iframe 的内容我们改不了（浏览器同源策略），
+      所以这里做的是<strong>对照表</strong> —— 左边是它上面实际写的原文，右边是中文，照着找就行。</p>
+
+    <h3>顶部工具条</h3>
+    <table class="lab-table">
+      <thead><tr><th>原文（日 / 英）</th><th>中文</th><th>在哪 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td>Save Preset</td><td>保存预设</td><td>右上角，把当前整套参数存起来</td></tr>
+        <tr><td>Load Preset</td><td>读取预设</td><td>右上角，调出以前存的</td></tr>
+        <tr><td>EN / JP</td><td>语言切换</td><td>右上角那个 <code>EN</code> 按钮：点一下切成英文</td></tr>
+        <tr><td>ゲームUI演出</td><td>游戏 UI 演出</td><td>顶部标签页（素材库之一）</td></tr>
+        <tr><td>利用規約</td><td>使用条款</td><td>顶部标签页</td></tr>
+        <tr><td>Effect_Ideas_100</td><td>特效创意 100 例</td><td>顶部标签页（灵感库）</td></tr>
+        <tr><td>Texture_Ideas_100</td><td>贴图创意 100 例</td><td>顶部标签页</td></tr>
+        <tr><td>Particle_Ideas</td><td>粒子创意</td><td>顶部标签页</td></tr>
+      </tbody>
+    </table>
+
+    <h3>画布与导出</h3>
+    <table class="lab-table">
+      <thead><tr><th>原文</th><th>中文</th><th>在哪 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td>Save Export ▼</td><td>保存 / 导出</td><td>画布左上角，点开是导出选项</td></tr>
+        <tr><td>Black Bg</td><td>黑底</td><td>画布下方勾选：导出时铺黑底（不保留透明）</td></tr>
+        <tr><td>CB Bg</td><td>棋盘底</td><td>透明区域显示成棋盘格 —— 用来检查透明，不会导出进图</td></tr>
+        <tr><td>512 × 512 px</td><td>画布尺寸</td><td>画布右下角的角标</td></tr>
+      </tbody>
+    </table>
+
+    <h3>参数面板</h3>
+    <table class="lab-table">
+      <thead><tr><th>原文</th><th>中文</th><th>在哪 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td>グラジェントランプ機能</td><td>渐变色阶功能</td><td>右侧参数区</td></tr>
+        <tr><td>有効</td><td>启用</td><td>勾上这一项才生效</td></tr>
+        <tr><td>（滑杆 + 数值框）</td><td>—</td><td>每行都是「拖动滑杆 / 直接输入数值」</td></tr>
+        <tr><td>▸ 可折叠分区</td><td>—</td><td>点小三角展开或收起，收起时右上角会写已启用的项数</td></tr>
+      </tbody>
+    </table>
+
+    <h3>面板位置（按它自己的界面结构整理）</h3>
+    <table class="lab-table">
+      <thead><tr><th>它那边</th><th>中文</th><th>干什么的</th></tr></thead>
+      <tbody>
+        <tr><td>Type browser</td><td>类型浏览器</td><td>左边一列：分类、搜索、收藏、标签筛选、缩略图网格</td></tr>
+        <tr><td>Layer panel</td><td>图层栏</td><td>新建 / 显示隐藏 / 重命名，一层叠一层</td></tr>
+        <tr><td>Gradient editor</td><td>色阶编辑器</td><td>色带 + 可拖动色标，能加色标、删色标、存成预设</td></tr>
+        <tr><td>Sheet export</td><td>序列图导出</td><td>精灵表（带预览），做 UE 翻转书用</td></tr>
+        <tr><td>Channel pack</td><td>通道打包</td><td>把不同图分别塞进 R / G / B / A</td></tr>
+        <tr><td>Quick start</td><td>快速开始</td><td>预设画廊，点一张卡片套一套参数</td></tr>
+      </tbody>
+    </table>
+
+    <h2>使用建议</h2>
+    <ol class="lab-steps">
+      <li>先挑类型（分类里点），别一上来就调参数。</li>
+      <li>先看整体形状对不对，形状对了再调明暗和细节。</li>
+      <li>导出前用平铺检查看一眼接缝，再做序列图 / 通道打包。</li>
+      <li>调好的参数存进预设库（<b>Save Preset</b>），下次直接套。</li>
+    </ol>
+    <p class="lab-note">本机「<a href="./workshop.html">贴图台</a>」同样有类型浏览器 / 图层 / 可折叠参数 / 色阶编辑器 / 翻转书 / 通道打包 / 我的预设，
+      而且<strong>不联网、不登录也能用</strong> —— 网络到不了这边时用它。</p>
+  </section>
 </main>
 
 <footer class="site-foot">
