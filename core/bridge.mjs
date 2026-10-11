@@ -179,6 +179,33 @@ export function watchForUpdates(onChange) {
   window.addEventListener('focus', check);
 }
 
+/**
+ * 给图标链接打上构建版本号。
+ *
+ * 为什么需要：GitHub Pages 给所有资源设了 cache-control: max-age=600（10 分钟），
+ * 浏览器在这期间根本不会去问服务器。favicon 更顽固 —— 它存在独立的图标缓存里，
+ * 普通刷新（F5）常常不管用。表现就是「代码部署了、页面上标没变」。
+ *
+ * 做法：拿 version.json 里的 build 时间戳当查询参数。参数一变，URL 就变了，
+ * 浏览器就会重新去取。这样每次部署后图标都是自动最新的。
+ */
+export async function stampAssetVersions() {
+  try {
+    const response = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const build = data && data.build;
+    if (!build) return null;
+    for (const link of document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]')) {
+      const href = link.getAttribute('href') || '';
+      // 只处理本地相对资源；内联 data: 的不用管，它随 HTML 一起更新
+      if (!href.startsWith('./') || href.includes('?')) continue;
+      link.setAttribute('href', href + '?v=' + build);
+    }
+    return build;
+  } catch { return null; }
+}
+
 /** 拦截 fetch：把 /api/* 和 /reference/* 接到本页实现上。其余请求原样放行。 */
 export function installStaticBackend() {
   if (window.__vfxBridgeInstalled) return;
