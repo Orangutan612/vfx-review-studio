@@ -98,6 +98,7 @@
             <button type="button" data-v="1">100%</button>
           </div>
           <span class="ws-spacer"></span>
+          <button id="ws-seamless" class="button secondary small" type="button" title="把当前画面做成四方连续的无缝贴图（生成新图层）">无缝化</button>
           <button id="ws-copy" class="button secondary small" type="button" title="把当前画面复制到剪贴板">复制</button>
         </div>
 
@@ -235,7 +236,7 @@
         <li><b>叠加多层</b>才是出好图的关键：比如「集中线」配一层「噪波」用乘算，边缘立刻就碎了。</li>
         <li><b>混合模式</b>里「相加」适合做发光，「正片叠底」适合做压暗与遮罩。</li>
         <li><b>导入贴图</b>把本地图片当一层用（PNG / JPG / WebP），缩放位移旋转混合照常。</li>
-        <li><b>无缝化</b>（工具条里的按钮）用「偏移 + 边缘融合」把接缝抹掉，纯本地算法、瞬间出结果，不需要联网。</li>
+        <li><b>无缝化</b>（工具条里的按钮）把画面和它的四向镜像做加权平均：强度拉到 1 时，平铺边界在数学上完全相等（左右/上下边界取到的是同一个平均值），代价是画面变四向对称、细节软一点，所以给了强度。结果是新图层，原图还在。</li>
         <li>所有东西都在你本机算：<b>不上传、不联网、关掉网页就没了</b>（除非你存了文件）。</li>
       </ul>
     </section>
