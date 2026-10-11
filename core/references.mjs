@@ -75,9 +75,27 @@ export async function listReferences() {
   } finally { db.close(); }
 }
 
+const MIME_BY_EXT = {
+  mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
+};
+
+/**
+ * 浏览器给的 blob.type 常常是空的（尤其是 .mov），
+ * 一旦为空，后续 Content-Type 就变成 application/octet-stream，
+ * 浏览器不会把它当视频播 —— 所以这里按扩展名补上。
+ */
+function withType(blob, name) {
+  if (blob.type && blob.type !== 'application/octet-stream') return blob;
+  const ext = String(name).split('.').pop().toLowerCase();
+  const type = MIME_BY_EXT[ext];
+  return type ? new Blob([blob], { type }) : blob;
+}
+
 export async function saveReference(name, bufferOrBlob) {
   const safe = safeName(name);
-  const blob = bufferOrBlob instanceof Blob ? bufferOrBlob : new Blob([bufferOrBlob]);
+  const raw = bufferOrBlob instanceof Blob ? bufferOrBlob : new Blob([bufferOrBlob]);
+  const blob = withType(raw, safe);
   if (!blob.size) throw fail('收到的文件是空的。');
   const kind = kindOf(safe);
   const limit = kind === 'image' ? MAX_IMAGE_BYTES : MAX_REFERENCE_BYTES;
