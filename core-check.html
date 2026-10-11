@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>核心模块自检 · 特效评审台</title>
+<style>
+body{margin:0;padding:32px 20px;font:15px/1.7 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1f2937;background:#f6f7f9}
+.box{max-width:840px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:24px 28px}
+h1{margin:0 0 6px;font-size:20px}
+p.lead{margin:0 0 18px;color:#5b6675;font-size:14px}
+pre{margin:0;padding:16px;background:#0f1216;color:#d7e0ea;border-radius:10px;font-size:13.5px;line-height:1.85;overflow:auto}
+.summary{margin:14px 0 0;font-size:14.5px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>浏览器端核心模块自检</h1>
+<p class="lead">这一页<strong>不发送任何数据</strong>。它只确认 server/ 里的评审逻辑能被浏览器原样加载 —— 这是「链接版」的地基。全部在你本机浏览器里完成。</p>
+<pre id="out">正在加载模块…</pre>
+<p class="summary" id="summary"></p>
+</div>
+<script>
+  // 直接双击 HTML 文件时，浏览器会拒绝加载 ES 模块（CORS 策略，不是代码问题）。
+  // 这段刻意用普通脚本，因为 file:// 下 type="module" 根本不会执行。
+  if (location.protocol === "file:") {
+    var out = document.getElementById("out");
+    out.textContent = [
+      "这一页需要通过本地服务打开，不能直接双击文件。",
+      "",
+      "正确地址是：",
+      "    http://127.0.0.1:8787/core-check.html",
+      "",
+      "步骤：",
+      "  1. 双击 vfx-review 文件夹里的「启动.cmd」",
+      "  2. 浏览器会自动打开页面；把地址栏改成上面那行即可",
+      "",
+      "为什么直接双击不行：浏览器禁止从 file:// 加载 ES 模块（安全策略），",
+      "所以 /core/config.mjs 会被解析成 file:///D:/core/... 然后被拦掉。",
+    ].join("\n");
+    document.getElementById("summary").textContent = "请通过 http://127.0.0.1:8787/core-check.html 打开";
+    document.getElementById("summary").style.color = "#b42318";
+  }
+</script>
+<script src="./vendor/mp4box/mp4box.all.min.js"></script>
+<script type="module">
+if (location.protocol === "file:") { /* 已经给过提示了，这里不再跑 */ } else {
+const lines = [], results = [];
+const ok = (name, pass, detail) => { results.push(Boolean(pass)); lines.push((pass ? "  ok   " : "  FAIL ") + name + (detail ? "   -> " + detail : "")); };
+// 每个检查各自兜错：一条出问题不该把后面全部带崩（诊断页最怕这个）。
+const step = (name, fn) => { try { fn(); } catch (e) { ok(name, false, (e && e.message) || String(e)); } };
+try {
+  const cfg = await import("./core/config.mjs");
+  ok("加载 /core/config.mjs（浏览器版）", true, cfg.ENV_PATH);
+  ok("默认模型可用", cfg.config.model === "deepseek-flash", cfg.config.model);
+  const llm = await import("./core/llm.mjs");
+  ok("加载 /core/llm.mjs（直接取自 server/）", typeof llm.chat === "function");
+  const fence = String.fromCharCode(96).repeat(3);
+  const messy = "好的，结果如下：" + fence + "json" + "\n" + String.fromCharCode(123) + "\"a\": 1" + String.fromCharCode(125) + "\n" + fence + " 完毕";
+  let parsed = null;
+  try { parsed = llm.parseJsonLoose(messy); } catch (e) { parsed = null; }
+  ok("解析器能从寒暄和代码块里抠出 JSON", parsed && parsed.a === 1, JSON.stringify(parsed));
+  const providers = await import("./core/providers.mjs");
+  ok("加载 /core/providers.mjs", providers.PROVIDERS.length >= 5, providers.PROVIDERS.length + " 家服务商");
+  const review = await import("./core/review.mjs");
+  ok("加载 /core/review.mjs（直接取自 server/）", true);
+  ok("评审准则 8 个维度", review.RUBRIC.length === 8, String(review.RUBRIC.length));
+  ok("建议条数档位正确", review.FEEDBACK_COUNTS.medium === 6);
+  const shaped = review.normalizeReport(
+    { summary: "s", suggestions: [{ title: "T", evidenceTime: 1, actions: ["x"] }], rubric: [{ key: "form", status: "pass", evidence: "ok" }],
+      score: { dimensions: [{ key: "form", score: 4 }], strengths: ["a"], weaknesses: ["b"] } },
+    { count: 3, range: { start: 0, end: 2 } });
+  ok("归一化：准则维度补齐到 8", shaped.rubric.length === 8);
+  ok("归一化：总分由程序算（4 分 -> 40）", shaped.score.total === 40, String(shaped.score.total));
+  ok("归一化：建议保留", shaped.suggestions.length === 1);
+  const doc = await import("./report-document.js");
+  const html = doc.renderReport(shaped, [], { interactive: false, series: [], meta: { file: "x.mp4" } });
+  ok("报告能渲染出评分板块", html.indexOf("report-score") >= 0);
+  ok("报告能渲染出准则表", html.indexOf("评审准则核对") >= 0);
+  const frame = await import("./frame-sequence.js");
+  ok("加载 /frame-sequence.js", typeof frame.decodeSequence === "function");
+  ok("WebCodecs 可用（逐帧解码的前提）", typeof window.VideoDecoder === "function");
+  ok("mp4box 已就绪", Boolean(window.MP4Box && window.MP4Box.createFile));
+  ok("屏幕捕获可用（录屏参考）", Boolean(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia));
+  ok("画中画可用（录制浮窗）", typeof window.documentPictureInPicture !== "undefined");
+} catch (error) {
+  ok("模块加载", false, error && error.message ? error.message : String(error));
+}
+document.getElementById("out").textContent = lines.join("\n");
+const failed = results.filter(v => !v).length;
+const s = document.getElementById("summary");
+s.textContent = failed === 0 ? "全部 " + results.length + " 项通过 —— 浏览器端核心可用，链接版地基没问题。" : failed + " / " + results.length + " 项失败，把上面的内容发给我。";
+s.style.color = failed === 0 ? "#027a48" : "#b42318";
+}
+</script>
+</body>
+</html>
