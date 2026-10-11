@@ -8,6 +8,7 @@
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
 import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js';
+import { referenceObjectURL } from './core/bridge.mjs';
 import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js';
 
 const $ = id => document.getElementById(id);
@@ -1070,7 +1071,81 @@ function revealCaptured(id) {
  *     就把录制时的接触表摆出来 —— 那本身就是「录到了什么」的完整记录。
  *     之前这里错把一张静态样片塞进 <video>，所以看起来「视频播不出来」。
  */
-function previewReference(options) {
+/**
+ * 播放失败时显示的东西。
+ *
+ * 关键取舍：播放和评审用的是**两套完全不同的东西** ——
+ *   · 播放走 <video>，要求容器 + 编码都是浏览器支持的（基本只认 H.264）
+ *   · 评审走 mp4box + WebCodecs 逐帧解码
+ * 所以「播不出来」不等于「不能用」。直接甩一句「文件可能坏了」，
+ * 等于让用户白跑一趟 —— 所以这里给一条真能验证的路：摊帧。
+ */
+function showPreviewProblem(container, name, why) {
+  container.replaceChildren();
+  const tip = document.createElement('p');
+  tip.className = 'preview-note error';
+  tip.textContent = '浏览器播不出来：' + why;
+  container.appendChild(tip);
+  const hint = document.createElement('p');
+  hint.className = 'preview-note';
+  hint.textContent = '注意：能播和能用是两件事。评审用的是逐帧解码，和播放器不是一套东西 —— '
+    + '播不出来不代表不能评审。点下面按钮真解几帧看看。';
+  container.appendChild(hint);
+  const row = document.createElement('div');
+  row.className = 'preview-actions';
+  const tryBtn = document.createElement('button');
+  tryBtn.type = 'button';
+  tryBtn.className = 'chip-button accent';
+  tryBtn.textContent = '摊帧验证';
+  tryBtn.addEventListener('click', () => decodePreviewFrames(container, name));
+  row.appendChild(tryBtn);
+  container.appendChild(row);
+}
+
+/** 用和评审完全相同的管线真解几帧出来 —— 这是「能不能用」的唯一可靠判断。 */
+async function decodePreviewFrames(container, name) {
+  container.replaceChildren();
+  const note = document.createElement('p');
+  note.className = 'preview-note';
+  note.textContent = '正在用评审的管线试解，稍等……';
+  container.appendChild(note);
+  try {
+    const blob = await (await fetch('/reference/' + encodeURIComponent(name))).blob();
+    const file = new File([blob], name, { type: blob.type || 'video/mp4' });
+    const info = await inspectVideo(file);
+    const span = Math.min(Number(info.duration) || 3, 3);
+    const times = [0.15, 0.5, 0.85].map(r => r * span);
+    const decoded = await decodeSequence(file, { start: 0, end: span }, () => {}, { mode: 'frames', times });
+    const shots = (decoded.frames || []).filter(f => f && f.image);
+    container.replaceChildren();
+    if (!shots.length) throw new Error('解码没有产出画面');
+    const ok = document.createElement('p');
+    ok.className = 'preview-note';
+    const meta = [info.width && info.height ? info.width + '×' + info.height : '', info.fps ? Math.round(info.fps) + 'fps' : '', info.duration ? info.duration.toFixed(1) + 's' : '']
+      .filter(Boolean).join(' · ');
+    ok.textContent = '✓ 能正常解码（' + meta + '）—— 评审不受影响。这是从文件里真解出来的画面：';
+    container.appendChild(ok);
+    const grid = document.createElement('div');
+    grid.className = 'preview-grid';
+    for (const shot of shots) {
+      const img = document.createElement('img');
+      img.src = shot.image;
+      img.alt = name + ' 解出的画面';
+      img.addEventListener('click', () => openLightbox(shot.image, img.alt));
+      grid.appendChild(img);
+    }
+    container.appendChild(grid);
+  } catch (error) {
+    container.replaceChildren();
+    const bad = document.createElement('p');
+    bad.className = 'preview-note error';
+    bad.textContent = '这条文件连评审管线也解不了：' + ((error && error.message) || error)
+      + '。多半是编码问题（例如 H.265 / ProRes / 未封装的裸流）—— 用 Media Encoder 或 HandBrake 转成 H.264 的 MP4 再用。';
+    container.appendChild(bad);
+  }
+}
+
+async function previewReference(options) {
   const { kind = 'video', name = '未命名', sheets = [], note = '' } = options || {};
   const body = $('preview-body');
   body.replaceChildren();
@@ -1097,19 +1172,33 @@ function previewReference(options) {
     node.src = '/reference/' + encodeURIComponent(name);
     body.appendChild(node);
   } else {
+    // 本地版走服务器（已支持 Range）；链接版走 blob: ——
+    // 浏览器对 blob: 的原生媒体支持是完整的，能播、能拖进度条。
+    let src;
+    try {
+      src = LINK_MODE ? await referenceObjectURL(name) : '/reference/' + encodeURIComponent(name);
+    } catch (error) {
+      showPreviewProblem(body, name, '取不到这个文件：' + ((error && error.message) || error));
+      $('preview-dialog').showModal();
+      return;
+    }
     const node = document.createElement('video');
-    node.src = '/reference/' + encodeURIComponent(name);
+    node.src = src;
     node.controls = true;
     node.autoplay = true;
     node.muted = true;
     node.playsInline = true;
     node.preload = 'metadata';
     node.addEventListener('error', () => {
-      body.replaceChildren();
-      const tip = document.createElement('p');
-      tip.className = 'preview-note error';
-      tip.textContent = '这个文件浏览器播不出来。可能不是 H.264 的 MP4，或者文件损坏了 —— 换一个试试。';
-      body.appendChild(tip);
+      // 把真实错误码翻译出来 —— 甩一句「可能坏了」等于没说
+      const code = node.error ? node.error.code : 0;
+      const why = {
+        1: '加载被中止',
+        2: '读取失败',
+        3: '解码失败（多半是编码不被浏览器支持，例如 H.265 / ProRes）',
+        4: '浏览器不支持这个封装格式',
+      }[code] || '未知原因';
+      showPreviewProblem(body, name, why);
     });
     body.appendChild(node);
   }
