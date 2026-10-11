@@ -38,9 +38,9 @@ a{color:var(--brand)}
   position:sticky; top:0; z-index:20; flex-wrap:wrap;
 }
 .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:16px}
-/* 品牌标：八角钢牌，切角是自己的形状 —— 别用 border-radius/box-shadow 裁剪或投影，
-   那两样都按矩形盒子算，会在四个切角外面留一圈方形的影子。要用跟随轮廓的 drop-shadow。 */
-.logo-mark{display:block;flex:none;filter:drop-shadow(0 1px 3px rgba(13,20,32,.38))}
+/* 品牌标：平色圆角方 + 白色 A。**不要**加 border-radius / box-shadow / filter ——
+   圆角是图形自带的，投影是廉价图标素材的典型配件，这一版刻意一个都不要。 */
+.logo-mark{display:block;flex:none}
 .brand{gap:11px}
 .brand-sub{
   display:block; font-size:13px; font-weight:600; letter-spacing:.14em;
