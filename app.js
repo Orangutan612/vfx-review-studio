@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js';
-import { referenceObjectURL } from './core/bridge.mjs';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791739811501';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791739811501';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791739811501';
 
 const $ = id => document.getElementById(id);
 
