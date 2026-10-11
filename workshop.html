@@ -181,6 +181,52 @@
 </dialog>
 
 <!-- ── 通道打包 ── -->
+<!-- ── 翻转书 / 序列图（UE5 Flipbook 那种）── -->
+<dialog id="ws-sheet-dialog" class="ws-dialog ws-dialog-wide">
+  <div class="ws-dialog-head">
+    <div>
+      <h2>翻转书 / 序列图</h2>
+      <p>一张图里排 N×N 格，每格一个小元素、四周留白 —— UE5 的 Flipbook、Unity 的 Sprite Sheet、粒子贴图都用这个格式。</p>
+    </div>
+    <button class="ws-dialog-x" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="ws-dialog-body">
+    <div class="ws-sheet-wrap">
+      <div class="ws-sheet-preview"><canvas id="ws-sheet-preview"></canvas></div>
+      <div class="ws-sheet-opts">
+        <div class="ws-param">
+          <div class="ws-param-label">列 × 行</div>
+          <div class="ws-sheet-pair">
+            <input id="ws-sheet-cols" class="ws-num" type="number" min="1" max="16" step="1" value="8">
+            <span>×</span>
+            <input id="ws-sheet-rows" class="ws-num" type="number" min="1" max="16" step="1" value="8">
+          </div>
+          <div></div>
+        </div>
+        <div class="ws-param"><div class="ws-param-label">每格尺寸</div>
+          <select id="ws-sheet-cell"><option>32</option><option>64</option><option selected>128</option><option>256</option><option>512</option></select><div></div></div>
+        <div class="ws-param"><div class="ws-param-label">元素占比</div>
+          <input id="ws-sheet-inset" type="range" min="0.15" max="1" step="0.01" value="0.55">
+          <input id="ws-sheet-inset-num" class="ws-num" type="number" min="0.15" max="1" step="0.01" value="0.55"></div>
+        <div class="ws-param"><div class="ws-param-label">元素遮罩</div>
+          <select id="ws-sheet-mask"><option value="soft" selected>柔和圆形</option><option value="hard">硬圆形</option><option value="none">无（成整块）</option></select><div></div></div>
+        <div class="ws-param"><div class="ws-param-label">每格内容</div>
+          <select id="ws-sheet-mode"><option value="random" selected>每格换一个随机种子</option><option value="time">按时间连续（动画）</option></select><div></div></div>
+        <div class="ws-param"><div class="ws-param-label">背景</div>
+          <select id="ws-sheet-bg"><option value="transparent" selected>透明</option><option value="white">白底</option><option value="black">黑底</option></select><div></div></div>
+        <div class="ws-param"><div class="ws-param-label">整体旋转</div>
+          <input id="ws-sheet-spin" type="range" min="0" max="360" step="5" value="0">
+          <input id="ws-sheet-spin-num" class="ws-num" type="number" min="0" max="360" step="5" value="0"></div>
+        <p class="ws-note" id="ws-sheet-size">输出 1024 × 1024</p>
+      </div>
+    </div>
+  </div>
+  <div class="ws-dialog-foot">
+    <button class="button secondary" type="button" data-close>取消</button>
+    <button id="ws-sheet-go" class="button primary" type="button">导出 PNG</button>
+  </div>
+</dialog>
+
 <dialog id="ws-pack-dialog" class="ws-dialog">
   <div class="ws-dialog-head">
     <div>
