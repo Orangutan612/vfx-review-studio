@@ -206,6 +206,19 @@ export async function stampAssetVersions() {
   } catch { return null; }
 }
 
+/**
+ * 拿一个可以直接喂给 <video>/<img> 的 blob: URL。
+ *
+ * 为什么链接版不能用 /reference/ 播视频：
+ *   ① new Response(blob) 不支持 Range，而浏览器播媒体会先要 206，拿不到就拒绝播；
+ *   ② blob 的类型可能是空的，Content-Type 变成 octet-stream，浏览器不当它是视频。
+ * 浏览器对 blob: 的原生媒体支持是完整的（能播、能拖进度条），所以走这条路。
+ */
+export async function referenceObjectURL(name) {
+  const blob = await readReferenceBlob(name);
+  return URL.createObjectURL(blob);
+}
+
 /** 拦截 fetch：把 /api/* 和 /reference/* 接到本页实现上。其余请求原样放行。 */
 export function installStaticBackend() {
   if (window.__vfxBridgeInstalled) return;
