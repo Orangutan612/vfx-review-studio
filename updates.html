@@ -21,7 +21,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791741057538">
+<link rel="stylesheet" href="./style.css?v=1791742310163">
 </head>
 <body>
 
@@ -30,11 +30,11 @@
     <img class="logo-mark" src="./logo.svg" width="34" height="34" alt="">
     <span>更新说明<span class="brand-sub">ASTERIUS · CHANGELOG</span></span>
   </div>
-  <nav class="ws-nav" aria-label="站点导航">
-    <a href="./index.html">作品评审</a>
-    <a href="./workshop.html">贴图台</a>
-    <a href="./updates.html" aria-current="page">更新说明</a>
-    <a href="./lab.html">贴图工具</a>
+  <nav class="app-switch" aria-label="工具切换">
+    <a href="./index.html" class="app-switch-item">作品评审</a>
+    <a href="./workshop.html" class="app-switch-item">贴图台</a>
+    <a href="./lab.html" class="app-switch-item">贴图工具</a>
+    <a href="./updates.html" class="app-switch-item is-active" aria-current="page">更新说明</a>
   </nav>
   <div class="topbar-right">
     <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
@@ -59,6 +59,14 @@
         <li><b>验证方式</b><span>同一张图，GPU 与 CPU 两条路各算一遍逐像素比：差异 <strong>0.4%–2%</strong>（星芒 0.021、闪光 0.006、辉光 0.012、花瓣 0.018）—— 说明着色器确实复现了原来的画面，不是"另画了一个"。</span></li>
         <li><b>修：部署了新版本却看不到</b><span>GitHub Pages 对静态资源带缓存，HTML 里的 script/link 没有版本号，浏览器就一直吃旧文件。现在<strong>部署时自动给所有资源加上当次的版本号</strong>，每次部署必定生效。</span></li>
         <li><b>按"联络表"逐个修手感和剪贴画感</b><span>把 54 个生成器全部铺成一张联络表逐个看，抓出并修掉：<strong>边缘被切平</strong>（14 个"画面里放元素"的类型现在会在贴边前淡出，融球/散景/神光不再糊在边上）、散景光斑跑到框外的放置 bug、多边形/星形/十字/月牙的<strong>纯白硬边剪贴画感</strong>（加了内部明暗，有体积了）、融球和散景默认太大糊成一坨。</span></li>
+        <li><b>用 SDF 图元重做 6 个最难看的（GPU）</b><span>建了一套 GLSL 图元库（<code>cov</code> 抗锯齿、<code>smin</code> 平滑并集、<code>sdSeg</code> 线段距离、<code>gauss</code>），并用它重写了融球 / 散景 / 火花 / 细胞 / 十字 / 月牙 —— 融球现在是独立柔边球体、散景是有边框的圆盘、火花是带拖尾的胶囊、细胞有明暗分块。GPU 类型从 8 个增到 <strong>14 个</strong>。</span></li>
+        <li><b>第二批 6 个也重做了（GPU）</b><span>神光（从画面上方洒下的宽柔光柱）· 矩阵（真正下落的数字雨，带拖尾和亮头）· 水晶（有棱面明暗的晶格）· 编织（一横一竖交织的线）· 马赛克（带斜边和间隙的砖块）· 做旧（多层污渍而不是细麻点）。<strong>GPU 类型 14 → 20 个</strong>。</span></li>
+        <li><b>54 个生成器全部上了 GPU</b><span>把剩下 30 个（噪波族 / 图案族 / 自然现象族）一次性全搬到片元着色器，<strong>现在每一个类型都跑 GPU</strong>，拖滑杆基本不掉帧。做法是把它们的参数和算法逐个对照着转 —— 不是重画，是同一套数学换到 GPU 上算。</span></li>
+        <li><b>第三批 4 个也重做了（GPU）</b><span>闪电（真正的分叉雷，线段距离场 + 辉光，不再是抖动的曲线）· 溶解（有序抖动 + 噪声，边缘带亮边）· 能量场（加强，不再发灰）· 等离子（加了域扭曲，不再退化成同心圆）。<strong>GPU 类型 20 → 24 个</strong>。</span></li>
+        <li><b>工坊布局重排：空白填满</b><span>以前预览窗下面是<b>一大片空白</b>，而操作全堆在右侧一列、要一直往下滚。现在改成<strong>两列</strong>：左边类型浏览器，右边是预览窗 + <strong>它下面并排的「图层 / 图层参数 / 文档」</strong>。需要滚动的地方只有「你展开某个折叠分组」——不再是浪费空间。</span></li>
+        <li><b>工具切换器（新）</b><span>顶栏中间一条显眼的切换器：<strong>作品评审 / 贴图台 / 贴图工具 / 更新说明</strong>，四个页面随时互相跳。</span></li>
+        <li><b>页脚标清安全性</b><span>四页页脚统一写明：作品视频与参考素材<strong>从不离开本机</strong>；API Key 只存在你的浏览器里、只发给你自己选的模型服务；本站<strong>没有服务器</strong>，不代存也不转发；贴图工具页是内嵌的第三方站点，内容属于原作者。</span></li>
+        <li><b>新增「贴图工具」页（内嵌第三方）</b><span>顶栏多了 <strong>贴图工具</strong>：以<strong>内嵌方式</strong>引用 gameanimation.info 的 TextureCreate（代码和内容都是他们的），并配了一份<strong>中文位置对照</strong>——按它的界面结构整理，帮你快速找到类型浏览器 / 图层栏 / 参数区 / 色阶编辑器 / 导出在哪。内嵌页面本身的文字改不了（跨域限制）。</span></li>
         <li><b>后续</b><span>剩下 46 个类型按同一套模板继续搬（每个类型一段 GLSL 主体 + 一句参数映射）。</span></li>
       </ul>
     </div>
@@ -188,12 +196,11 @@
   <p class="upd-foot">更早的版本没有单独记录。这一版之前，站点标识换过三次稿，过程稿留在仓库的 <code>tools/logo-drafts/</code> 里。</p>
 
   <footer class="site-foot">
-    <a href="./index.html">作品评审</a>
-    <span>·</span>
-    <a href="./workshop.html">贴图台</a>
-    <span>·</span>
-    <span>作品视频与素材从不离开本机</span>
-  </footer>
+  <div class="site-foot-links">
+    <a href="./index.html">作品评审</a><span>·</span><a href="./workshop.html">贴图台</a><span>·</span><a href="./lab.html">贴图工具</a><span>·</span><a href="./updates.html">更新说明</a>
+  </div>
+  <p class="site-foot-safe"><b>安全性</b>：作品视频与参考素材<strong>从不离开本机</strong>；API Key 只存在你的浏览器里、只发给你自己选的模型服务；本站<strong>没有服务器</strong>，不代存也不转发任何内容。贴图工具页是<strong>内嵌的第三方站点</strong>，内容属于原作者。</p>
+</footer>
 </main>
 
 <script>
