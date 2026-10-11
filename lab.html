@@ -20,7 +20,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791743271899">
+<link rel="stylesheet" href="./style.css?v=1791744059936">
 </head>
 <body>
 
@@ -52,6 +52,15 @@
       <button id="lab-full" class="button secondary small" type="button">全屏</button>
       <a class="button primary small" href="https://gameanimation.info/texture-create/" target="_blank" rel="noopener noreferrer">新窗口打开 ↗</a>
     </div>
+  </div>
+
+  <div class="lab-sources">
+    <button class="lab-src is-active" type="button" data-url="https://gameanimation.info/texture-create/" data-name="TextureCreate">
+      TextureCreate<span>gameanimation.info</span>
+    </button>
+    <button class="lab-src" type="button" data-url="https://vfxmento.xyz/%E8%B4%B4%E5%9B%BE%E5%B7%A5%E5%9D%8A/" data-name="贴图工坊">
+      贴图工坊<span>vfxmento.xyz</span>
+    </button>
   </div>
 
   <div class="lab-embed">
@@ -146,6 +155,17 @@
     sync();
   });
   var frame = document.getElementById('lab-frame');
+  var openLink = document.querySelector('.lab-bar-acts a[target="_blank"]');
+  var srcBtns = [].slice.call(document.querySelectorAll('.lab-src'));
+  srcBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      srcBtns.forEach(function (x) { x.classList.toggle('is-active', x === b); });
+      frame.src = b.getAttribute('data-url');
+      if (openLink) openLink.href = b.getAttribute('data-url');
+      var title = document.querySelector('.lab-bar-text strong');
+      if (title) title.textContent = b.getAttribute('data-name');
+    });
+  });
   document.getElementById('lab-reload').addEventListener('click', function () { frame.src = frame.src; });
   document.getElementById('lab-full').addEventListener('click', function () {
     var el = document.querySelector('.lab-embed');
