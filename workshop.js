@@ -34,13 +34,24 @@
   /** 周期性值噪波：per 是整数周期，所以整张图可以无缝平铺 */
   // 每层可以关掉「四方连续」（见图层的「连续」开关）。关掉就用普通哈希，接缝不再对齐。
   var TILING = true;
+  /** 格点梯度：由哈希定一个方向（周期内卷绕 → 仍然四方连续） */
+  var GRAD8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7071, 0.7071], [-0.7071, 0.7071], [0.7071, -0.7071], [-0.7071, -0.7071]];
+  function gradDot(ix, iy, per, seed, dx, dy) {
+    var h = TILING ? hash2(((ix % per) + per) % per, ((iy % per) + per) % per, seed) : hash2(ix, iy, seed);
+    var g = GRAD8[(h * 8) & 7];      // 查表代替 cos/sin —— 快很多，观感几乎没差别
+    return g[0] * dx + g[1] * dy;
+  }
+  /** 周期性 Perlin 梯度噪波（五分平滑）——比哈希值噪波平滑得多、没有方格感，返回 0..1 */
   function pnoise(x, y, per, seed) {
     var xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
-    var u = smooth(xf), v = smooth(yf);
-    function w(i, j) {
-      return TILING ? hash2(((i % per) + per) % per, ((j % per) + per) % per, seed) : hash2(i, j, seed);
-    }
-    return lerp(lerp(w(xi, yi), w(xi + 1, yi), u), lerp(w(xi, yi + 1), w(xi + 1, yi + 1), u), v);
+    var u = xf * xf * xf * (xf * (xf * 6 - 15) + 10);      // quintic
+    var v = yf * yf * yf * (yf * (yf * 6 - 15) + 10);
+    var n00 = gradDot(xi, yi, per, seed, xf, yf);
+    var n10 = gradDot(xi + 1, yi, per, seed, xf - 1, yf);
+    var n01 = gradDot(xi, yi + 1, per, seed, xf, yf - 1);
+    var n11 = gradDot(xi + 1, yi + 1, per, seed, xf - 1, yf - 1);
+    var n = lerp(lerp(n00, n10, u), lerp(n01, n11, u), v);
+    return clamp(n * 0.72 + 0.5, 0, 1);
   }
   /** 分形噪波（每层周期翻倍，保证每层都连续） */
   function fbmN(x, y, per, oct, seed, gain) {
@@ -142,12 +153,19 @@
     params: [{ k: 'scale', label: '密度', min: 1, max: 16, step: 1, def: 4 },
       { k: 'oct', label: '层数', min: 1, max: 8, step: 1, def: 5 },
       { k: 'gain', label: '衰减', min: 0.25, max: 0.75, step: 0.01, def: 0.5 },
+      { k: 'warp', label: '扭曲', min: 0, max: 2, step: 0.02, def: 0.35 },
       { k: 'flow', label: '流动', min: 0, max: 1, step: 0.01, def: 0.3 },
       { k: 'contrast', label: '对比', min: 0.2, max: 3, step: 0.05, def: 1.2 },
       { k: 'bias', label: '亮度', min: -0.4, max: 0.4, step: 0.01, def: 0 }],
     fn: function (p, x, y, t, s) {
-      var v = fbmN(x * p.scale + t * p.flow, y * p.scale, p.scale, p.oct, s, p.gain);
-      return clamp((v - 0.5) * p.contrast + 0.5 + p.bias, 0, 1);
+      var u = x * p.scale + t * p.flow, v0 = y * p.scale;
+      if (p.warp > 0) {                    // 域扭曲：用另一层噪波把采样点推开，出流动/卷曲感
+        var wx = fbmN(u * 0.5 + 11, v0 * 0.5, Math.max(1, Math.round(p.scale / 2)), 3, s + 51, 0.5) - 0.5;
+        var wy = fbmN(u * 0.5, v0 * 0.5 + 23, Math.max(1, Math.round(p.scale / 2)), 3, s + 97, 0.5) - 0.5;
+        u += wx * p.warp * 2; v0 += wy * p.warp * 2;
+      }
+      var n = fbmN(u, v0, p.scale, p.oct, s, p.gain);
+      return clamp((n - 0.5) * p.contrast + 0.5 + p.bias, 0, 1);
     }
   });
   TYPES.push({
@@ -155,10 +173,17 @@
     params: [{ k: 'scale', label: '密度', min: 1, max: 12, step: 1, def: 3 },
       { k: 'oct', label: '层数', min: 2, max: 8, step: 1, def: 6 },
       { k: 'puff', label: '蓬松', min: 0, max: 2, step: 0.05, def: 0.9 },
+      { k: 'warp', label: '扭曲', min: 0, max: 2, step: 0.02, def: 0.5 },
       { k: 'flow', label: '流动', min: 0, max: 0.6, step: 0.01, def: 0.12 },
       { k: 'contrast', label: '对比', min: 0.5, max: 4, step: 0.05, def: 2.0 }],
     fn: function (p, x, y, t, s) {
-      var v = fbmN(x * p.scale + t * p.flow, y * p.scale, p.scale, p.oct, s, 0.55);
+      var u = x * p.scale + t * p.flow, v0 = y * p.scale;
+      if (p.warp > 0) {
+        var wx = fbmN(u * 0.6 + 7, v0 * 0.6, Math.max(1, Math.round(p.scale / 2)), 3, s + 31, 0.5) - 0.5;
+        var wy = fbmN(u * 0.6, v0 * 0.6 + 19, Math.max(1, Math.round(p.scale / 2)), 3, s + 71, 0.5) - 0.5;
+        u += wx * p.warp * 2.5; v0 += wy * p.warp * 2.5;
+      }
+      var v = fbmN(u, v0, p.scale, p.oct, s, 0.55);
       v = 1 - Math.abs(v * 2 - 1);
       v = Math.pow(v, 1 + p.puff * 2);
       return clamp((v - 0.35) * p.contrast + 0.35, 0, 1);
@@ -1809,6 +1834,27 @@
     download('packed-rgba-' + stamp() + '.png', encodePNG(size, size, out));
   }
 
+  /* ─────────────────── 参数面板的可折叠分组 ───────────────────
+     踩过的坑：所有东西一股脑堆在右栏，一屏看不完、找不到东西。改成折叠分组，
+     只默认展开最常用的（生成器参数 + 着色），其余折起来。展开状态记在内存里，切图层不会重置。 */
+  var groupOpen = {};
+  function wsGroup(key, title, openDefault, nodes) {
+    if (groupOpen[key] === undefined) groupOpen[key] = openDefault;
+    var open = groupOpen[key];
+    var body = h('div', { class: 'ws-group-body' }, nodes);
+    if (!open) body.setAttribute('hidden', '');
+    var arrow = h('span', { class: 'ws-group-arrow', text: open ? '▾' : '▸' });
+    var head = h('button', { class: 'ws-group-head', type: 'button', 'aria-expanded': String(open) }, [arrow, h('span', { text: title })]);
+    head.addEventListener('click', function () {
+      groupOpen[key] = !groupOpen[key];
+      var on = groupOpen[key];
+      if (on) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
+      head.setAttribute('aria-expanded', String(on));
+      arrow.textContent = on ? '▾' : '▸';
+    });
+    return h('div', { class: 'ws-group' + (open ? ' is-open' : '') }, [head, body]);
+  }
+
   /* ───────────────────────────── 色标编辑器 ───────────────────────────── */
   var rampEdit = { stops: [], sel: null };
   function builtinStops(name) {
@@ -2036,16 +2082,46 @@
 
   /* ───────────────────────────── 舞台 ───────────────────────────── */
   var stageWrap = $('ws-canvas-wrap'), view = $('ws-canvas');
-  /** 只决定「显示多大」——像素尺寸永远等于 画布尺寸 × 平铺数，缩放交给 CSS */
-  function applyZoom() {
+  /* 缩放：**缓存**比例，只在容器真的换了尺寸（或画布 / 平铺 / 缩放模式变了）时才重算。
+     踩过的坑：原来每次 draw() 都重新测量容器，而参数面板重建那一瞬间容器高度是变的，
+     于是「一调滑块预览就莫名缩小一下」——算出来的比例偏小，而且不会自己变回来。 */
+  var viewScale = 1, stageBox = { w: 0, h: 0 };
+  function computeScale() {
     var n = doc.size * tileN;
     var stage = $('ws-stage');
-    var availW = Math.max(160, stage.clientWidth - 48);
-    var availH = Math.max(200, stage.clientHeight - 48);
-    var scale = zoomMode === 'fit' ? Math.min(availW / n, availH / n) : 1;
-    scale = clamp(scale, 0.05, 4);
-    view.style.width = (n * scale) + 'px';
-    view.style.height = (n * scale) + 'px';
+    // 量的时候先把画布暂时收成 0：否则「画布太大 → 出现滚动条 → 量到的可用空间变小」，
+    // 来回切平铺尺寸会一路掉下去（踩过：352 → 348 → 344）。
+    var pw = view.style.width, ph = view.style.height;
+    view.style.width = '0px'; view.style.height = '0px';
+    var w = stage.clientWidth, h = stage.clientHeight;
+    view.style.width = pw; view.style.height = ph;
+    if (!w || !h) return viewScale;
+    stageBox = { w: w, h: h };
+    var availW = Math.max(160, w - 48), availH = Math.max(200, h - 48);
+    var sc = zoomMode === 'fit' ? Math.min(availW / n, availH / n) : 1;
+    return clamp(sc, 0.05, 4);
+  }
+  function applyZoom(force) {
+    var n = doc.size * tileN;
+    if (force) viewScale = computeScale();
+    view.style.width = (n * viewScale) + 'px';
+    view.style.height = (n * viewScale) + 'px';
+  }
+  function initZoomWatcher() {
+    var stage = $('ws-stage');
+    if (window.ResizeObserver) {
+      var t = null;
+      new ResizeObserver(function () {
+        clearTimeout(t);
+        t = setTimeout(function () {
+          var w = stage.clientWidth, h = stage.clientHeight;
+          if (Math.abs(w - stageBox.w) < 2 && Math.abs(h - stageBox.h) < 2) return;
+          applyZoom(true);
+        }, 60);
+      }).observe(stage);
+    }
+    window.addEventListener('resize', function () { applyZoom(true); });
+    applyZoom(true);
   }
   function draw() {
     var t0 = performance.now();
@@ -2061,7 +2137,7 @@
       }
       ctx.drawImage(src, i * doc.size, j * doc.size);
     }
-    applyZoom();
+    applyZoom(false);                 // 只套缓存比例，不重新测量（否则调参数预览会跳）
     $('ws-perf').textContent = '渲染 ' + (performance.now() - t0).toFixed(0) + ' ms · ' + doc.size + '×' + doc.size + (tileN > 1 ? ' × ' + tileN + '×' + tileN : '');
   }
 
@@ -2146,13 +2222,15 @@
 
   /* ───────────────────────────── 参数面板 ───────────────────────────── */
   function buildParams() {
+    var secParams = [], secTf = [], secTile = [], secFx = [], secColor = [], secBlend = [], secSeed = [];
+    var cur = secParams;
     var box = $('ws-params');
     box.textContent = '';
     var l = curLayer();
-    if (!l) { box.appendChild(h('p', { class: 'ws-empty', text: '还没有选中图层。右边点「＋ 新建」加一层。' })); return; }
+    if (!l) { cur.push(h('p', { class: 'ws-empty', text: '还没有选中图层。右边点「＋ 新建」加一层。' })); return; }
 
     if (l.type === '__image') {
-      box.appendChild(h('p', { class: 'ws-note', text: '这是一个图片图层：原图直接当素材用，下面是它的变换（等比缩放，不会拉变形）。' }));
+      cur.push(h('p', { class: 'ws-note', text: '这是一个图片图层：原图直接当素材用，下面是它的变换（等比缩放，不会拉变形）。' }));
       [{ k: 'imgScale', label: '缩放', min: 0.05, max: 4, step: 0.01, def: 1 },
        { k: 'imgX', label: '左右位移', min: -1, max: 1, step: 0.01, def: 0 },
        { k: 'imgY', label: '上下位移', min: -1, max: 1, step: 0.01, def: 0 },
@@ -2161,33 +2239,33 @@
         var slider = sliderInput(pp, l.params, function () { draw(); });
         var num = numInput(pp, l.params, pp.def);
         slider.addEventListener('input', function () { num.value = slider.value; });
-        box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: pp.label }), slider, num]));
+        cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: pp.label }), slider, num]));
       });
       [['imgFlipX', '水平翻转'], ['imgFlipY', '垂直翻转']].forEach(function (pp) {
         var cb = h('input', { type: 'checkbox' });
         cb.checked = !!l.params[pp[0]];
         cb.addEventListener('change', function () { snapshot(); l.params[pp[0]] = cb.checked; touch(false); });
-        box.appendChild(h('label', { class: 'ws-check' }, [cb, h('span', { text: pp[1] })]));
+        cur.push(h('label', { class: 'ws-check' }, [cb, h('span', { text: pp[1] })]));
       });
     } else {
       var T = TYPE_BY_ID[l.type];
       if (T && T.params.length) {
-        T.params.forEach(function (p) { box.appendChild(paramRow(p, l)); });
+        T.params.forEach(function (p) { cur.push(paramRow(p, l)); });
       } else {
-        box.appendChild(h('p', { class: 'ws-empty', text: '这个类型没有可调参数。' }));
+        cur.push(h('p', { class: 'ws-empty', text: '这个类型没有可调参数。' }));
       }
     }
 
+    cur = secTile;
     // ── 连续（四方连续开关）──
     var tileBox = h('input', { type: 'checkbox' });
     tileBox.checked = l.tile !== false;
     tileBox.addEventListener('change', function () { snapshot(); l.tile = tileBox.checked; touch(false); });
-    box.appendChild(h('div', { class: 'ws-param-group', text: '连续' }));
-    box.appendChild(h('label', { class: 'ws-check' }, [tileBox,
+    cur.push(h('label', { class: 'ws-check' }, [tileBox,
       h('span', { text: '四方连续（整数密度下平铺无缝）' })]));
 
+    cur = secTf;
     // ── 变换（任何生成器都能缩放 / 旋转 / 位移 / 极坐标）──
-    box.appendChild(h('div', { class: 'ws-param-group', text: '变换' }));
     if (!l.tf) l.tf = { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false };
     [{ k: 'sx', label: '缩放 X', min: 0.1, max: 4, step: 0.01, def: 1 },
      { k: 'sy', label: '缩放 Y', min: 0.1, max: 4, step: 0.01, def: 1 },
@@ -2197,22 +2275,22 @@
       var slider = sliderInput(pp, l.tf, function () { draw(); });
       var num = numInput(pp, l.tf, pp.def);
       slider.addEventListener('input', function () { num.value = slider.value; });
-      box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: pp.label }), slider, num]));
+      cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: pp.label }), slider, num]));
     });
     var polarBox = h('input', { type: 'checkbox' });
     polarBox.checked = !!l.tf.polar;
     polarBox.addEventListener('change', function () { snapshot(); l.tf.polar = polarBox.checked; touch(false); });
-    box.appendChild(h('label', { class: 'ws-check' }, [polarBox, h('span', { text: '极坐标（横轴当角度）' })]));
+    cur.push(h('label', { class: 'ws-check' }, [polarBox, h('span', { text: '极坐标（横轴当角度）' })]));
     var tfReset = h('button', { class: 'button secondary small', type: 'button', text: '重置变换' });
     tfReset.addEventListener('click', function () {
       snapshot();
       l.tf = { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false };
       touch(true);
     });
-    box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '' }), tfReset, h('div')]));
+    cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '' }), tfReset, h('div')]));
 
+    cur = secFx;
     // ── 后处理（对齐了同类工具里最常用的 11 项）──
-    box.appendChild(h('div', { class: 'ws-param-group', text: '后处理' }));
     var fxOn = 0;
     POSTFX.forEach(function (F) {
       if (!l.fx) l.fx = {};
@@ -2221,25 +2299,25 @@
       var box2 = h('input', { type: 'checkbox' });
       box2.checked = !!cfg.on;
       box2.addEventListener('change', function () { snapshot(); cfg.on = box2.checked; touch(true); });
-      box.appendChild(h('label', { class: 'ws-fx-head' + (cfg.on ? ' is-on' : '') }, [box2, h('span', { text: F.name })]));
+      cur.push(h('label', { class: 'ws-fx-head' + (cfg.on ? ' is-on' : '') }, [box2, h('span', { text: F.name })]));
       if (cfg.on) {
         fxOn++;
         var fxBody = h('div', { class: 'ws-fx-body' });
         F.params.forEach(function (p) { fxBody.appendChild(paramRow(p, { params: cfg })); });
-        box.appendChild(fxBody);
+        cur.push(fxBody);
       }
     });
-    if (!fxOn) box.appendChild(h('p', { class: 'ws-note', text: '后处理是形状做完之后的加工：模糊、泛光、像素化、暗角这些。勾一个试试。' }));
+    if (!fxOn) cur.push(h('p', { class: 'ws-note', text: '后处理是形状做完之后的加工：模糊、泛光、像素化、暗角这些。勾一个试试。' }));
 
+    cur = secColor;
     // ── 着色 ──
-    box.appendChild(h('div', { class: 'ws-param-group', text: '着色' }));
     var seg = h('div', { class: 'ws-seg', style: 'margin:2px 0 6px' });
     [['gray', '灰度'], ['ramp', '色阶'], ['solid', '单色']].forEach(function (m) {
       var b = h('button', { type: 'button', 'aria-pressed': String(l.color.mode === m[0]) }, [document.createTextNode(m[1])]);
       b.addEventListener('click', function () { snapshot(); l.color.mode = m[0]; touch(true); });
       seg.appendChild(b);
     });
-    box.appendChild(seg);
+    cur.push(seg);
     if (l.color.mode === 'ramp') {
       var sel = h('select');
       Object.keys(RAMPS).forEach(function (k) {
@@ -2261,21 +2339,21 @@
       });
       var editBtn = h('button', { class: 'button secondary small', type: 'button', text: '编辑' });
       editBtn.addEventListener('click', openRampEditor);
-      box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '色阶' }), sel, editBtn]));
+      cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '色阶' }), sel, editBtn]));
     } else if (l.color.mode === 'solid') {
       var col = h('input', { type: 'color', value: l.color.solid, style: 'width:100%;height:34px;padding:2px' });
       col.addEventListener('input', function () { l.color.solid = col.value; touch(false); });
-      box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '颜色' }), col, h('div')]));
+      cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '颜色' }), col, h('div')]));
     }
     var chk = h('label', { class: 'ws-check' }, [
       (function () { var i = h('input', { type: 'checkbox' }); i.checked = !!l.alphaFromLum; i.addEventListener('change', function () { snapshot(); l.alphaFromLum = i.checked; touch(false); }); return i; })(),
       h('span', { text: '亮度转透明（把黑底变透明）' })
     ]);
-    box.appendChild(chk);
+    cur.push(chk);
 
+    cur = secBlend;
     // ── 合成 ──
-    box.appendChild(h('div', { class: 'ws-param-group', text: '合成' }));
-    box.appendChild(h('div', { class: 'ws-param' }, [
+    cur.push(h('div', { class: 'ws-param' }, [
       h('div', { class: 'ws-param-label', text: '混合' }),
       (function () {
         var s = h('select');
@@ -2290,14 +2368,24 @@
     op.addEventListener('input', function () { l.opacity = +op.value; opN.value = op.value; draw(); });
     op.addEventListener('change', function () { persist(); });
     opN.addEventListener('change', function () { var v = clamp(+opN.value || 0, 0, 1); l.opacity = v; op.value = v; opN.value = v; touch(false); });
-    box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '不透明度' }), op, opN]));
+    cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '不透明度' }), op, opN]));
 
+    cur = secSeed;
     // ── 种子 ──
-    box.appendChild(h('div', { class: 'ws-param' }, [
+    cur.push(h('div', { class: 'ws-param' }, [
       h('div', { class: 'ws-param-label', text: '随机种子' }),
       (function () { var b = h('button', { class: 'button secondary small', type: 'button', text: '换一组' }); b.addEventListener('click', function () { snapshot(); l.seed = (Math.random() * 1e6) | 0; touch(false); }); return b; })(),
       h('div', { class: 'ws-dim', text: String(l.seed).slice(0, 6) })
     ]));
+
+    // 组装：默认只展开「生成器参数」和「着色」，其余折起来
+    box.appendChild(wsGroup('params', '生成器参数', true, secParams));
+    if (secTf.length) box.appendChild(wsGroup('tf', '变换', false, secTf));
+    if (secTile.length) box.appendChild(wsGroup('tile', '平铺 / 连续', false, secTile));
+    if (secFx.length) box.appendChild(wsGroup('fx', '后处理' + (fxOn ? '（' + fxOn + ' 项已开）' : ''), false, secFx));
+    box.appendChild(wsGroup('color', '着色', true, secColor));
+    box.appendChild(wsGroup('blend', '合成', false, secBlend));
+    box.appendChild(wsGroup('seed', '随机种子', false, secSeed));
   }
   function sliderInput(p, store, onInput) {
     var inp = h('input', { type: 'range', min: p.min, max: p.max, step: p.step, value: store[p.k] });
@@ -2738,7 +2826,7 @@
     $('ws-save').addEventListener('click', saveDoc);
     $('ws-load').addEventListener('click', function () { $('ws-file-doc').click(); });
     $('ws-share').addEventListener('click', shareLink);
-    $('ws-size').addEventListener('change', function (e) { snapshot(); doc.size = +e.target.value; rebuildAll(); });
+    $('ws-size').addEventListener('change', function (e) { snapshot(); doc.size = +e.target.value; viewScale = computeScale(); rebuildAll(); });
     $('ws-undo').addEventListener('click', undo);
     $('ws-redo').addEventListener('click', redo);
     $('ws-quick-toggle').addEventListener('click', function () {
@@ -2751,9 +2839,9 @@
       b.addEventListener('click', function () { b.closest('dialog').close(); });
     });
     bindSeg('ws-bg', function (v) { doc.bg = v; syncStageControls(); draw(); persist(); });
-    bindSeg('ws-tile', function (v) { tileN = +v; syncStageControls(); draw(); });
-    bindSeg('ws-zoom', function (v) { zoomMode = v; syncStageControls(); draw(); });
-    window.addEventListener('resize', function () { applyZoom(); });
+    bindSeg('ws-tile', function (v) { tileN = +v; syncStageControls(); applyZoom(true); draw(); });
+    bindSeg('ws-zoom', function (v) { zoomMode = v; syncStageControls(); applyZoom(true); draw(); });
+    initZoomWatcher();
     document.addEventListener('keydown', function (e) {
       var tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
@@ -2803,6 +2891,12 @@
     applySeamless: applySeamless, seamlessPixels: seamlessPixels,
     /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
     sheetLayout: sheetLayout,
+    /** 自检用：沿一条线采 pnoise，验「连续」和「周期」 */
+    noiseProbe: function (n) {
+      var out = [];
+      for (var i = 0; i <= n; i++) out.push(pnoise(i / n * 4, 0.5, 4, 12345));
+      return out;
+    },
     /** 自检用：验自定义色标（带位置的色标）算得对 */
     rampCheck: function (stops, t) { return rampAtStops(stops, t); },
     rampLUTCheck: function (stops) { var L = rampLUT(null, stops); return [L[0], L[1], L[2], L[765], L[766], L[767]]; },
