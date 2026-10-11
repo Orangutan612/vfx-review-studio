@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791745425776"></script>
+<script src="./frame-guard.js?v=1791746091972"></script>
+<script src="./update-check.js?v=1791746091972"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：新增贴图台、站点标识重做、自检扩容。">
@@ -22,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791745425776">
+<link rel="stylesheet" href="./style.css?v=1791746091972">
 </head>
 <body>
 
@@ -46,13 +47,24 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.2</h1>
-    <p class="upd-lead">补了一轮<strong>安全加固</strong>：把"已经安全"变成"每次改动都会被自检验证"，并把账号侧的防护清单写进 README。</p>
+    <h1>v1.4.3</h1>
+    <p class="upd-lead">修掉一个反复出现的坑：<strong>部署完却看到旧内容</strong> —— 原因是浏览器把 HTML 也缓存了，现在页面会自己发现并提示你刷新。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.4.2</h2><span class="ws-dim">安全加固</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.4.3</h2><span class="ws-dim">旧页面自曝</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：「上传了但页面没变」</b><span>这不是没传上去，是<b>浏览器把 HTML 也缓存了</b> —— 之前部署脚本只给 JS / CSS 打了版本号，管不到 HTML 本身。现在每个页面都带一个<b>自曝</b>：拿自己身上的构建号和线上 <code>version.json</code>（强制不走缓存地取）比一比，落后就在页面底部弹一条「你看的是旧版页面 —— 线上已经有 v…」并给一键刷新。以后再遇上"怎么没变"，页面自己会告诉你，不用猜。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.2</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>v1.4.2</h2><span class="ws-dim">安全加固</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
         <li><b>把安全变成"每次都会被验证"（新）</b><span>审计了一遍真实风险，并加了 3 条永久自检：<b>报告里的模型输出必须被转义</b>（喂一段 <code>&lt;img onerror=...&gt;</code> 验证）、<b>部署目录里不许出现任何外部脚本 / 样式</b>（供应链风险归零）、<b>评审链路不许接触 API Key</b>（Key 只进 LLM 客户端）。</span></li>
