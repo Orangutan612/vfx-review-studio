@@ -9,8 +9,8 @@
  * 为什么非要这样：一次性把 450 帧塞给模型既超上下文、又把细节摊薄；而只给几张孤立
  * 截图，模型就看不出「运动」——接触表 + 关键帧放大，这两个必须都有。
  */
-import { chat, chatJson, imagePart, textPart, LlmError } from './llm.mjs?v=1791743271899';
-import { config } from './config.mjs?v=1791743271899';
+import { chat, chatJson, imagePart, textPart, LlmError } from './llm.mjs?v=1791744059936';
+import { config } from './config.mjs?v=1791744059936';
 
 /**
  * 特效评审准则（rubric）。
