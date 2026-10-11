@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="内嵌的第三方贴图生成器（TextureCreate）入口。">
+<meta name="description" content="内嵌的第三方贴图生成器 TextureCreate，附中文位置对照与使用建议。">
 <title>贴图工具 · 特效评审台</title>
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <style>
@@ -20,20 +20,20 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791741057538">
+<link rel="stylesheet" href="./style.css?v=1791742310163">
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
     <img class="logo-mark" src="./logo.svg" width="34" height="34" alt="">
-    <span>贴图工具<span class="brand-sub">ASTERIUS · TEXTURE EXTERNAL</span></span>
+    <span>贴图工具<span class="brand-sub">ASTERIUS · EXTERNAL TOOL</span></span>
   </div>
-  <nav class="ws-nav" aria-label="站点导航">
-    <a href="./index.html">作品评审</a>
-    <a href="./workshop.html">贴图台</a>
-    <a href="./lab.html" aria-current="page">贴图工具</a>
-    <a href="./updates.html">更新说明</a>
+  <nav class="app-switch" aria-label="工具切换">
+    <a href="./index.html" class="app-switch-item">作品评审</a>
+    <a href="./workshop.html" class="app-switch-item">贴图台</a>
+    <a href="./lab.html" class="app-switch-item is-active" aria-current="page">贴图工具</a>
+    <a href="./updates.html" class="app-switch-item">更新说明</a>
   </nav>
   <div class="topbar-right">
     <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
@@ -42,33 +42,59 @@
 
 <main class="lab-main">
   <div class="lab-bar">
-    <div>
-      <strong>TextureCreate</strong>
-      <span class="ws-dim">来自 gameanimation.info 的贴图生成器 —— 这里是以**内嵌**方式引用它，代码和内容都是他们的。</span>
+    <div class="lab-bar-text">
+      <strong>TextureCreate</strong><span class="lab-badge">第三方 · 内嵌</span>
+      <p>来自 gameanimation.info 的贴图生成器。这里是<strong>内嵌引用</strong>：代码和内容都是他们的，我们没有改动、也没有复制到本站。
+        国内直连通常需要代理；本机的「<a href="./workshop.html">贴图台</a>」是离线备用。</p>
     </div>
-    <a class="button secondary small" href="https://gameanimation.info/texture-create/" target="_blank" rel="noopener noreferrer">在新窗口打开 ↗</a>
+    <div class="lab-bar-acts">
+      <button id="lab-reload" class="button secondary small" type="button">重新载入</button>
+      <button id="lab-full" class="button secondary small" type="button">全屏</button>
+      <a class="button primary small" href="https://gameanimation.info/texture-create/" target="_blank" rel="noopener noreferrer">新窗口打开 ↗</a>
+    </div>
   </div>
 
-  <div class="lab-embed">
-    <iframe
-      src="https://gameanimation.info/texture-create/"
-      title="TextureCreate"
-      referrerpolicy="no-referrer-when-downgrade"
-      allow="clipboard-write; fullscreen"
-      loading="eager"></iframe>
-    <div class="lab-fallback">
-      <p><b>如果上面这块是空的</b>，说明对方不允许被内嵌，或者这个网络访问不到它（国内直连通常需要代理）。</p>
-      <p>点右上角「在新窗口打开 ↗」直接用；本机的「<a href="./workshop.html">贴图台</a>」是离线的备用方案，不联网也能用。</p>
+  <div class="lab-layout">
+    <aside class="lab-guide">
+      <h2>这块界面里有什么</h2>
+      <p class="lab-note">对方界面里的文字是英文 / 日文，而<strong>内嵌的页面我们改不了</strong>（浏览器同源策略：跨域 iframe 的内容不允许被外部修改）。
+        所以下面这份是<strong>位置对照</strong>——按它的界面结构整理的，帮你快速找到东西在哪。</p>
+      <ul class="lab-list">
+        <li><b>类型浏览器</b><span>分类、搜索、收藏、标签筛选、缩略图网格。左边那一列（或顶部）就是。</span></li>
+        <li><b>图层栏</b><span>新建 / 显示隐藏 / 重命名 / 缩略图，一层叠一层。</span></li>
+        <li><b>参数区</b><span>可折叠分区，每行是「滑块 + 数字框」。数字框能直接输入精确值。</span></li>
+        <li><b>渐变色阶编辑器</b><span>一条色带 + 可拖动的色标，能加色标、删色标、存成预设。</span></li>
+        <li><b>导出</b><span>序列图（精灵表，带预览）· 通道打包（R/G/B/A 各取一张）· 预设库。</span></li>
+        <li><b>快速开始</b><span>一个预设画廊，点一张卡片就能套一套参数。</span></li>
+      </ul>
+      <h2>建议的用法</h2>
+      <ol class="lab-steps">
+        <li>先挑类型（分类里点），别一上来就调参数。</li>
+        <li>调参数时**先看整体形状**，形状对了再调明暗和细节。</li>
+        <li>导出前用平铺检查看一眼接缝，再做序列图 / 通道打包。</li>
+        <li>做好的参数存进预设库，下次直接套。</li>
+      </ol>
+      <p class="lab-note">本机「贴图台」同样有这些功能（类型浏览器 / 图层 / 可折叠参数 / 色阶编辑器 / 翻转书 / 通道打包 / 我的预设），
+        而且 <strong>不联网、不登录也能用</strong>——网络到不了这边时用它。</p>
+    </aside>
+
+    <div class="lab-embed-pane">
+      <div class="lab-embed">
+        <iframe id="lab-frame" src="https://gameanimation.info/texture-create/" title="TextureCreate"
+          referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write; fullscreen" loading="eager"></iframe>
+      </div>
+      <div class="lab-fallback">
+        <p><b>如果上面这块一直是空白</b>，说明对方不允许被内嵌（部分站点会禁止），或者这个网络访问不到它。点右上角「新窗口打开 ↗」直接用。</p>
+      </div>
     </div>
   </div>
 </main>
 
 <footer class="site-foot">
-  <a href="./index.html">作品评审</a>
-  <span>·</span>
-  <a href="./workshop.html">贴图台（本机离线版）</a>
-  <span>·</span>
-  <a href="./updates.html">更新说明</a>
+  <div class="site-foot-links">
+    <a href="./index.html">作品评审</a><span>·</span><a href="./workshop.html">贴图台</a><span>·</span><a href="./lab.html">贴图工具</a><span>·</span><a href="./updates.html">更新说明</a>
+  </div>
+  <p class="site-foot-safe"><b>安全性</b>：作品视频与参考素材<strong>从不离开本机</strong>；API Key 只存在你的浏览器里、只发给你自己选的模型服务；本站<strong>没有服务器</strong>，不代存也不转发任何内容。贴图工具页是<strong>内嵌的第三方站点</strong>，内容属于原作者。</p>
 </footer>
 
 <script>
@@ -81,6 +107,13 @@
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem('vfx-theme', next); } catch (e) {}
     sync();
+  });
+  var frame = document.getElementById('lab-frame');
+  document.getElementById('lab-reload').addEventListener('click', function () { frame.src = frame.src; });
+  document.getElementById('lab-full').addEventListener('click', function () {
+    var el = document.querySelector('.lab-embed');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen();
   });
 })();
 </script>
