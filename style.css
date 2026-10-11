@@ -374,6 +374,37 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 .compare-tag{align-self:center;font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.1em}
 .compare-why{margin:8px 0 0;font-size:13px;color:var(--ink-soft)}
 .compare-why strong{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:2px}
+
+/* ── 参考库列表：一条一个框 ──
+   之前 .reference-row 只有 .just-added 那一条高亮态、没有基础样式，
+   所以列表就是几个裸元素堆着，跟整页的卡片风格完全不搭。 */
+.reference-list{display:flex; flex-direction:column; gap:9px; margin:12px 0 0}
+.reference-row{
+  display:flex; align-items:center; gap:11px;
+  padding:12px 14px;
+  border:1px solid var(--line); border-radius:12px; background:var(--card);
+  transition:border-color .18s, background .18s, box-shadow .18s;
+}
+.reference-row:hover{border-color:#c7d2e0}
+/* 勾选态高亮整个框，而不是只让小方块变色 —— 一眼看出哪几条参与了对比 */
+.reference-row:has(input:checked){
+  border-color:var(--brand); background:#f4f8ff; box-shadow:0 0 0 3px rgba(47,111,237,.09);
+}
+.reference-row input[type="checkbox"]{
+  width:19px; height:19px; margin:0; flex:none;
+  accent-color:var(--brand); cursor:pointer;
+}
+.reference-name{
+  flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.reference-row .reference-kind,
+.reference-row .row-action{flex:none}
+.reference-row.just-added{border-color:var(--brand); background:#eef4ff; box-shadow:0 0 0 3px rgba(47,111,237,.14)}
+
+[data-theme="dark"] .reference-row:hover{border-color:#39445a}
+[data-theme="dark"] .reference-row:has(input:checked){background:#152036; box-shadow:0 0 0 3px rgba(111,157,255,.12)}
+[data-theme="dark"] .reference-row.just-added{background:#1b2740; box-shadow:0 0 0 3px rgba(111,157,255,.2)}
 .reference-kind{font-size:13px;padding:1px 8px;border-radius:999px;background:#eef4ff;color:#3538cd;white-space:nowrap}
 .reference-kind.is-image{background:#ecfdf3;color:#027a48}
 [data-theme="dark"] .compare{background:#12161b}
@@ -477,3 +508,4 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 [data-theme="dark"] .chip-button.accent{border-color:#5c2b28;color:#ff9a91}
 [data-theme="dark"] .chip-button.accent:hover:not(:disabled){background:#b42318;color:#fff;border-color:#b42318}
 
+.preview-actions{margin-top:12px;display:flex;gap:9px;justify-content:center}
