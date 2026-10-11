@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791746561904"></script>
-<script src="./update-check.js?v=1791746561904"></script>
+<script src="./frame-guard.js?v=1791746892789"></script>
+<script src="./update-check.js?v=1791746892789"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：新增贴图台、站点标识重做、自检扩容。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791746561904">
+<link rel="stylesheet" href="./style.css?v=1791746892789">
 </head>
 <body>
 
@@ -61,8 +61,6 @@
     </div>
   </section>
 
-  <h2 class="upd-sep">上一版 · v1.4.2</h2>
-
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>v1.4.2</h2><span class="ws-dim">安全加固</span></div>
     <div class="ws-card-body">
@@ -73,16 +71,7 @@
     </div>
   </section>
 
-  <h2 class="upd-sep">上一版 · v1.4.1</h2>
-
-  <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>v1.4.1</h2><span class="ws-dim">防内嵌</span></div>
-    <div class="ws-card-body">
-      <ul class="upd-list">
-        <li><b>本站不允许被别的网页内嵌（新）</b><span>被内嵌时不会正常显示，并给出提示。做法上必须说明白：<b>GitHub Pages 不能让站点自定义响应头</b>，所以 <code>X-Frame-Options</code> / CSP 都用不了；而 <code>frame-ancestors</code> 写在 <code>&lt;meta&gt;</code> 里<b>规范上会被忽略</b>（只在响应头里生效）。静态站只剩页面内判断这一条路：检测到被嵌 → 先尝试跳出框，跳不出去就盖一层提示。地址加 <code>?embed=1</code> 可主动放行。</span></li>
-      </ul>
-    </div>
-  </section>
+  
 
   <h2 class="upd-sep">上一版 · v1.4.0</h2>
 
