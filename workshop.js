@@ -1192,7 +1192,7 @@
       id: 'L' + (uid++), type: T.id, name: T.name, visible: true, opacity: 1, blend: 'source-over',
       alphaFromLum: false, color: { mode: 'gray', ramp: '火焰', solid: '#ff8932' },
       tile: T.tile !== false, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false },
-      seed: seed === undefined ? ((Math.random() * 1e6) | 0) : seed, params: params
+      seed: seed === undefined ? DEFAULT_SEED : seed, params: params
     };
   }
   function cloneLayer(l) { var c = JSON.parse(JSON.stringify(l)); c.id = 'L' + (uid++); return c; }
@@ -2198,6 +2198,8 @@
     }
     return f;
   }
+  /** 缩略图用的种子：必须和新建图层用的一致，否则「缩略图一个样、点开另一个样」 */
+  var DEFAULT_SEED = 12345;   // 新建图层的默认种子：必须和缩略图用同一个，否则「缩略图一个样、点开另一个样」（要换花样请用参数面板的「换一组」）
   /** 只算灰度场（0..1），不碰颜色 —— 后处理和自检都吃这个 */
   var lastPath = 'CPU', forceCpu = false;
   function renderField(layer, size, t) {
@@ -2980,10 +2982,10 @@
     var img = ctx.createImageData(S, S), d = img.data;
     var P = {};
     T.params.forEach(function (p) { P[p.k] = p.def; });
-    var seed = 12345;
+    var seed = DEFAULT_SEED;   // 必须和新建图层同一个种子，否则缩略图和舞台图案不同
     // 缩略图必须和舞台走同一条渲染路径，否则就是「缩略图一个样、点开另一个样」
     var f = renderField({ type: T.id, params: P, seed: seed, tile: T.tile !== false, fx: {},
-      tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } }, S, 0.25);
+      tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } }, S, 0);
     for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
       var v = f ? f[y * S + x] : T.fn(P, x / S, y / S, 0.25, seed);
       v = v < 0 ? 0 : v > 1 ? 1 : v;
@@ -3733,6 +3735,43 @@
     /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
     sheetLayout: sheetLayout,
     gpuTypes: function () { return glTypes(); },
+    /** 自检用：每个类型的「缩略图」必须和「点开后新建的图层」渲染完全一致 */
+    thumbCheck: function (S) {
+      var n = S || 24, worst = { id: '', diff: 0 }, bad = [];
+      TYPES.forEach(function (T) {
+        var P = {};
+        T.params.forEach(function (p) { P[p.k] = p.def; });
+        var a = renderField({ type: T.id, params: P, seed: DEFAULT_SEED, tile: T.tile !== false, fx: {},
+          tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } }, n, 0);
+        var b = renderField(newLayer(T.id), n, 0);
+        if (!a || !b) { bad.push(T.id + ':空'); return; }
+        var d = 0;
+        for (var i = 0; i < a.length; i++) d += Math.abs(a[i] - b[i]);
+        d /= a.length;
+        if (d > worst.diff) worst = { id: T.id, diff: d };
+        if (d > 0.02) bad.push(T.id + ':' + d.toFixed(3));
+      });
+      // 幂等性：同样的输入连算两次必须完全一样（不一样 = 渲染有跨调用的隐藏状态）
+      var nondet = [], sample = null;
+      var T0 = TYPE_BY_ID['fbm'];
+      var L0 = newLayer('fbm');
+      var r1 = renderField(L0, n, 0), r2 = renderField(newLayer('fbm'), n, 0);
+      var dn = 0;
+      if (r1 && r2) { for (var q = 0; q < r1.length; q++) dn += Math.abs(r1[q] - r2[q]); dn /= r1.length; }
+      TYPES.forEach(function (T) {
+        var x1 = renderField(newLayer(T.id), n, 0), x2 = renderField(newLayer(T.id), n, 0);
+        if (!x1 || !x2) return;
+        var d = 0;
+        for (var i = 0; i < x1.length; i++) d += Math.abs(x1[i] - x2[i]);
+        if (d / x1.length > 0.001) nondet.push(T.id + ':' + (d / x1.length).toFixed(3));
+      });
+      if (T0 && L0) {
+        var PL = {}; T0.params.forEach(function (pp) { PL[pp.k] = pp.def; });
+        sample = { thumbParams: JSON.stringify(PL), layerParams: JSON.stringify(L0.params), tileThumb: T0.tile !== false, tileLayer: L0.tile !== false,
+          seedThumb: DEFAULT_SEED, seedLayer: L0.seed, diffNewLayerTwice: +dn.toFixed(4) };
+      }
+      return { worst: worst, bad: bad, n: TYPES.length, nondet: nondet, sample: sample };
+    },
     /** 诊断用：把某个类型按默认参数渲染成一张灰度图，返回 canvas（用来铺联络表挑毛病） */
     typeThumb: function (typeId, size) {
       var T = TYPE_BY_ID[typeId], P = {};
