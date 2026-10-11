@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="本地特效视频逐帧评审：接触表 + 关键帧 + 全帧亮度序列，交给多模态模型给出可执行的修改建议。">
+<title>特效评审台 · VFX Review Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f6fed'/%3E%3Cpath d='M9 22l7-13 7 13' stroke='white' stroke-width='2.4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css">
+<!-- 逐帧解码依赖 mp4box 解封装；这是经典脚本，必须在模块脚本之前加载。 -->
+<script src="./vendor/mp4box/mp4box.all.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">V</span>
+    <span>特效评审台<span class="brand-sub">VFX REVIEW STUDIO</span></span>
+  </div>
+  <div class="topbar-right">
+    <div id="health" class="health" role="status">正在检查服务…</div>
+    <button id="version-badge" class="version-badge" type="button" title="点击检查更新">v–</button>
+    <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
+    <button id="setup-open" class="button secondary small" type="button">配置模型</button>
+  </div>
+</header>
+
+<main>
+  <!-- 第一次使用时提醒去配置模型 -->
+  <section id="setup-banner" class="setup-banner" hidden>
+    <div>
+      <strong id="setup-banner-title">还差一步就能用了</strong>
+      <p id="setup-banner-body">需要配置一个<strong>能读图</strong>的 AI 模型。点右边的按钮，选一家服务商、粘贴 API Key 就行 —— 不用编辑任何文件，也不用懂命令行。</p>
+    </div>
+    <button id="setup-banner-open" class="button primary" type="button">立即配置</button>
+  </section>
+
+  <div class="layout">
+    <!-- ───────────── 01 作品 ───────────── -->
+    <section class="panel" aria-labelledby="work-heading">
+      <div class="panel-heading">
+        <h2 id="work-heading"><span class="step">01</span> 你的作品</h2>
+        <button id="replace" class="text-button" hidden type="button">换一个视频</button>
+      </div>
+
+      <input id="file" type="file" accept="video/mp4,video/quicktime,.mov" autocomplete="off" hidden>
+      <button class="dropzone" id="dropzone" type="button">
+        <span class="upload-icon" aria-hidden="true">↑</span>
+        <strong>拖入一段特效视频</strong>
+        <span>或点击选择文件</span>
+        <small>MP4 / MOV · 最长 2 分钟 · 最大 100 MB<br>上传后手动选一段不超过 15 秒的连续片段</small>
+      </button>
+
+      <div class="video-wrap" id="video-wrap" hidden><video id="video" controls playsinline preload="metadata"></video></div>
+
+      <div id="range-panel" class="range-panel" hidden>
+        <div class="range-heading">
+          <strong>选择评审范围</strong>
+          <button id="range-reset" class="text-button" type="button">恢复整段</button>
+        </div>
+        <p class="help">只评审选中的这段连续画面。视频超过 15 秒时，必须先缩短选区才能提交。</p>
+        <label for="range-start-slider">起点</label>
+        <input id="range-start-slider" type="range" min="0" max="1" step="0.01" value="0">
+        <label for="range-end-slider">终点</label>
+        <input id="range-end-slider" type="range" min="0" max="1" step="0.01" value="1">
+        <div class="form-row">
+          <div>
+            <label for="range-start">开始时间（秒）</label>
+            <input id="range-start" type="number" min="0" step="0.01" value="0">
+            <button id="range-use-start" class="text-button" type="button">用播放位置作起点</button>
+          </div>
+          <div>
+            <label for="range-end">结束时间（秒）</label>
+            <input id="range-end" type="number" min="0" step="0.01" value="1">
+            <button id="range-use-end" class="text-button" type="button">用播放位置作终点</button>
+          </div>
+        </div>
+        <p id="range-summary" class="help" role="status"></p>
+      </div>
+
+      <div class="file-info">
+        <span id="file-name">还没有选择作品</span>
+        <span id="file-meta">等待选择</span>
+      </div>
+
+      <div class="reference-panel">
+        <div class="reference-head">
+          <strong>参考库</strong>
+          <span class="reference-actions">
+            <button id="reference-add" class="chip-button" type="button">＋ 本地上传</button>
+            <button id="reference-capture" class="chip-button accent" type="button">● 录屏捕获</button>
+            <button id="reference-url-toggle" class="chip-button" type="button">从链接添加</button>
+          </span>
+        </div>
+        <div id="reference-url-row" class="reference-url-row" hidden>
+          <input id="reference-url" type="text" spellcheck="false" autocomplete="off" placeholder="粘贴视频直链，例如 https://…/clip.mp4">
+          <button id="reference-url-go" class="button secondary small" type="button">抓取</button>
+        </div>
+        <p class="help">勾选要参与对比的优秀片段。它们会用<strong>和你作品完全相同的管线</strong>解码
+        （逐帧 → 接触表 + 运动强度），再一起交给模型，并附在报告里。最多同时选 3 个。</p>
+        <p class="help"><strong>拿不到视频文件？用「录屏捕获」</strong> —— 点它选中正在播视频的那个标签页，
+        然后<strong>切到那边正常播放</strong>，看够了回来点「停止并保存」。中途可以暂停，最长 30 秒。
+        它对任何网站都有效，因为录的是你自己的屏幕。<br>
+        也支持<strong>静态参考图</strong>（PNG / JPG / WebP / GIF），最多 15 张 —— 概念图、别人作品里的一帧、你自己画的草图都行。</p>
+        <div id="reference-list" class="reference-list"></div>
+        <div id="reference-captured" class="reference-list"></div>
+        <input id="reference-file" type="file" accept="video/mp4,video/quicktime,.mov,.m4v,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+      </div>
+
+      <div id="status" class="status" role="status" aria-live="polite">选择一段完整技能视频，填好右侧需求，就可以开始评审。</div>
+      <div class="progress-track" hidden id="progress-track"><div id="progress-fill"></div></div>
+
+      <button id="analyze" class="button primary block" type="button" disabled>开始评审</button>
+    </section>
+
+    <!-- ───────────── 02 设置 ───────────── -->
+    <aside class="panel" aria-labelledby="settings-heading">
+      <div class="panel-heading"><h2 id="settings-heading"><span class="step">02</span> 评审设置</h2></div>
+
+      <div class="form-group">
+        <label id="level-label">写几条建议<span>报告的长度</span></label>
+        <div class="option-group" id="level-options" role="radiogroup" aria-labelledby="level-label"></div>
+      </div>
+
+      <div class="form-group">
+        <label id="reasoning-label">模型思考程度<span>越深越细，也越慢</span></label>
+        <div class="option-group" id="reasoning-options" role="radiogroup" aria-labelledby="reasoning-label"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="purpose">作品内容</label>
+          <select id="purpose">
+            <option>实战技能</option>
+            <option>作品集展示</option>
+            <option>循环 / 持续状态</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="style">特效风格</label>
+          <select id="style">
+            <option value="写实">写实</option>
+            <option value="风格化">风格化（卡通、二次元、国风）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="camera">观看距离</label>
+        <select id="camera">
+          <option>常规游戏镜头</option>
+          <option>近景展示</option>
+          <option>远景 / 俯视</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">作品介绍与评审要求<span>选填 · 最多 1500 字</span></label>
+        <textarea id="description" maxlength="1500" rows="5" placeholder="这条技能是什么、给谁用、你自己觉得哪里别扭。写清楚一点，建议会更准。"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="concern">这次最想解决什么<span>选填</span></label>
+        <textarea id="concern" maxlength="600" rows="2" placeholder="例如：重点看爆点那一击，主形是不是被自己吃掉了。"></textarea>
+      </div>
+
+      <label class="consent"><input id="consent" type="checkbox"><span>我了解：选中的画面截图会被发送到上面配置的模型服务。</span></label>
+      <p class="help">视频本身不会上传，只有抽取出来的截图与实算数值会离开这台机器。</p>
+    </aside>
+  </div>
+
+  <!-- ───────────── 任务进度 ───────────── -->
+  <section id="task-panel" class="task-panel" hidden aria-live="polite">
+    <h2 id="task-title">评审进行中</h2>
+    <ol id="task-steps" class="task-steps"></ol>
+    <p id="task-note" class="help"></p>
+  </section>
+
+  <!-- ───────────── 报告 ───────────── -->
+  <section id="results" class="results" hidden>
+    <div class="result-actions">
+      <button id="export-html" class="button primary" type="button">下载报告 HTML</button>
+      <button id="export-md" class="button secondary" type="button">复制建议为 Markdown</button>
+      <button id="print" class="button secondary" type="button">打印 / 存 PDF</button>
+      <span id="result-note" class="help" role="status"></span>
+    </div>
+    <div id="report" class="report-doc"></div>
+  </section>
+</main>
+
+<!-- ───────────── 参考预览 ───────────── -->
+<dialog id="preview-dialog" class="preview-dialog" aria-labelledby="preview-title">
+  <div class="preview-head">
+    <strong id="preview-title">参考预览</strong>
+    <button id="preview-close" class="text-button" type="button">关闭</button>
+  </div>
+  <div id="preview-body" class="preview-body"></div>
+</dialog>
+
+<!-- ───────────── 图片放大 ───────────── -->
+<div id="lightbox" class="lightbox" hidden role="dialog" aria-label="放大查看">
+  <img id="lightbox-img" alt="">
+  <button id="lightbox-close" class="lightbox-close" type="button">关闭 · 点任意处也可以</button>
+</div>
+
+<!-- ───────────── 录屏浮窗 ───────────── -->
+<div id="recorder" class="recorder" hidden role="dialog" aria-label="录屏控制">
+  <div class="recorder-head">
+    <span class="recorder-dot" aria-hidden="true"></span>
+    <strong>录屏中</strong>
+    <span id="recorder-time" class="recorder-time">0.0s / 30s</span>
+  </div>
+  <div class="recorder-bar"><div id="recorder-fill"></div></div>
+  <div class="recorder-actions">
+    <button id="recorder-start" class="button primary small" type="button">开始录制</button>
+    <button id="recorder-pause" class="button secondary small" type="button" hidden>暂停</button>
+    <button id="recorder-stop" class="button primary small" type="button" hidden>停止并保存</button>
+    <button id="recorder-cancel" class="text-button" type="button">放弃</button>
+    <button id="recorder-pop" class="text-button" type="button" hidden title="弹成一个始终显示在最前面的小窗口，切到别的标签页也看得见">弹成悬浮窗</button>
+  </div>
+  <p id="recorder-frames" class="recorder-foot">0 帧 · 0 页</p>
+  <p id="recorder-hint" class="recorder-foot">现在可以切到参考页面去播放了 —— 录制在后台继续，不会因为切走而停。</p>
+</div>
+
+<!-- ───────────── 配置模型向导 ───────────── -->
+<dialog id="setup-dialog" class="setup-dialog" aria-labelledby="setup-title">
+  <header class="setup-head">
+    <div class="setup-title-block">
+      <h2 id="setup-title">配置模型服务</h2>
+      <p class="setup-sub">需要接入一个<strong>能看懂图片</strong>的 AI 模型。配一次，之后一直有效。</p>
+    </div>
+    <button id="setup-close" class="setup-close" type="button" aria-label="关闭">✕</button>
+  </header>
+
+  <div class="setup-body">
+    <section class="setup-step">
+      <span class="setup-step-no" aria-hidden="true">1</span>
+      <div class="setup-step-body">
+        <label for="setup-provider">选一家服务商</label>
+        <select id="setup-provider"></select>
+        <p id="setup-provider-note" class="help"></p>
+        <a id="setup-key-link" class="setup-link" target="_blank" rel="noopener noreferrer" hidden>去申请 API Key →</a>
+      </div>
+    </section>
+
+    <section class="setup-step">
+      <span class="setup-step-no" aria-hidden="true">2</span>
+      <div class="setup-step-body">
+        <label for="setup-key">粘贴 API Key</label>
+        <div class="key-row">
+          <input id="setup-key" type="password" autocomplete="off" spellcheck="false" placeholder="在这里粘贴，形如一串字母数字">
+          <button id="setup-key-toggle" class="row-action" type="button">显示</button>
+        </div>
+        <p class="help" id="setup-key-hint"></p>
+      </div>
+    </section>
+
+    <details class="setup-advanced">
+      <summary>高级：接口地址与模型名</summary>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="setup-baseurl">接口地址</label>
+          <input id="setup-baseurl" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="setup-model">模型名 <span>必须能读图</span></label>
+          <input id="setup-model" spellcheck="false" autocomplete="off">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <footer class="setup-foot">
+    <p class="setup-privacy">
+      <strong>API Key 只存在这台电脑上</strong>（本机文件或浏览器存储），只发给你上面选的这家模型服务。
+      作品视频不会上传，只有你选中的画面截图会离开这台机器。
+    </p>
+    <p id="setup-status" class="setup-status" role="status"></p>
+    <div class="setup-actions">
+      <button id="setup-test" class="button secondary" type="button">只测试，不保存</button>
+      <button id="setup-save" class="button primary" type="button">测试并保存</button>
+    </div>
+  </footer>
+</dialog>
+
+<script type="module">
+// 一套页面，两种跑法：
+//   本地版 —— 前面有 Node 服务，/api/* 是真接口
+//   链接版 —— 没有任何服务端，本页把 /api/* 全部接管
+// 判断方式很直接：能连上 /api/health 就是本地版。
+// 必须赶在 app.js 之前装上拦截，否则它第一轮请求就打到空处了。
+import { detectMode, installStaticBackend, watchForUpdates } from "./core/bridge.mjs";
+
+let mode = "local";
+try { mode = await detectMode(); } catch (error) { mode = "static"; }
+if (mode === "static") installStaticBackend();
+document.documentElement.dataset.mode = mode;
+window.__vfxMode = mode;
+if (mode === "static") document.title += "（链接版）";
+
+// 作者部署了新版本 → 提示一下，但不硬刷（你可能正在看报告）
+watchForUpdates(() => {
+  if (document.getElementById('update-toast')) return;
+  const bar = document.createElement('div');
+  bar.id = 'update-toast';
+  bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:90;'
+    + 'display:flex;align-items:center;gap:12px;padding:11px 18px;border-radius:999px;'
+    + 'background:#161a20;color:#fff;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.28)';
+  bar.innerHTML = '<span>有新版本</span>';
+  const go = document.createElement('button');
+  go.textContent = '刷新看看';
+  go.style.cssText = 'border:none;background:#2f6fed;color:#fff;font:inherit;font-size:13.5px;'
+    + 'font-weight:600;padding:6px 15px;border-radius:999px;cursor:pointer';
+  go.addEventListener('click', () => location.reload());
+  bar.appendChild(go);
+  document.body.appendChild(bar);
+});
+
+try {
+  await import("./app.js");
+} catch (error) {
+  document.body.insertAdjacentHTML("afterbegin",
+    '<div style="margin:16px;padding:14px 18px;border-radius:12px;background:#fef3f2;border:1px solid #fda29b;color:#b42318;font-size:14px">'
+    + "启动失败：" + (error && error.message ? error.message : error) + "</div>");
+}
+</script>
+</body>
+</html>
