@@ -281,7 +281,7 @@ export function renderReport(report, frames = [], options = {}) {
 
   // 参考示例图：把参考库片段的接触表也画出来。
   // 光有文字结论，读者看不到「标杆长什么样」，对比就落不了地 ——
-  // 这也是原站报告里那一块「静态 / 动态案例参考」的作用。
+  // 这也是报告里「静态 / 动态案例参考」那一块的作用。
   const referenceShots = (Array.isArray(options.references) ? options.references : [])
     .map(item => {
       const sheets = (Array.isArray(item.sheets) ? item.sheets : []).filter(sheet => sheet?.image);
