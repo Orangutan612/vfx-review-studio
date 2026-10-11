@@ -928,14 +928,6 @@
     }
     download('normal-' + stamp() + '.png', encodePNG(size, size, out));
   }
-  /** 序列图集：按帧铺成网格 */
-  function exportSprite(frames, cols) {
-    var size = doc.size, rows = Math.ceil(frames / cols);
-    var c = document.createElement('canvas'); c.width = size * cols; c.height = size * rows;
-    var ctx = c.getContext('2d');
-    for (var i = 0; i < frames; i++) ctx.drawImage(renderDoc(i / frames), (i % cols) * size, Math.floor(i / cols) * size);
-    c.toBlob(function (b) { if (b) download('sprite-' + cols + 'x' + rows + '-' + stamp() + '.png', b); }, 'image/png');
-  }
   /* ── 序列帧导出：编号 PNG 打包成 zip ──
      不用 GIF 的两个理由：① 动画贴图喂引擎/AE 要的是**带透明通道的序列帧**，GIF 只有 1 位透明、还限 256 色；
      ② 自己写 GIF 编码器（LZW + 调色板量化）出来的质量还不如浏览器自己的 PNG 编码器。
@@ -1022,6 +1014,107 @@
     download(prefix + '_' + frames + 'f_' + stamp() + '.zip', new Blob([zip], { type: 'application/zip' }));
     toast('已导出 ' + files.length + ' 帧（' + kb + ' KB）');
     return files.length;
+  }
+
+  /* ───────────────── 翻转书 / 序列图（UE5 Flipbook 那种）─────────────────
+     和「平铺检查」不是一回事：平铺检查是把整幅画面无缝拼起来看接缝（做无缝贴图用的）；
+     翻转书是**每格一个独立小元素 + 四周留白**，是喂粒子 / Flipbook / Sprite 的格式。
+     参考图那种效果靠三个量：每格尺寸（常见 128）、元素占比（留白多少）、
+     元素遮罩（柔边圆形 —— 没有它，整幅噪波缩进格子里只会是一小块方形噪波，不是元素）。 */
+  var sheetCfg = { cols: 8, rows: 8, cell: 128, inset: 0.55, mask: 'soft', mode: 'random', bg: 'transparent', spin: 0 };
+
+  /** 纯函数：算每一格的位置和"元素框" —— 自检能直接验，不必依赖画布 */
+  function sheetLayout(cfg, cell) {
+    var c = cell || cfg.cell, cells = [];
+    for (var i = 0; i < cfg.cols * cfg.rows; i++) {
+      var x = (i % cfg.cols) * c, y = Math.floor(i / cfg.cols) * c;
+      var e = c * cfg.inset, off = (c - e) / 2;
+      cells.push({ i: i, x: x, y: y, ex: x + off, ey: y + off, es: e });
+    }
+    return { cols: cfg.cols, rows: cfg.rows, cell: c, w: c * cfg.cols, h: c * cfg.rows, cells: cells };
+  }
+  function renderSheet(cfg, forceCell) {
+    var cell = forceCell || cfg.cell;
+    var savedSize = doc.size;
+    var savedSeeds = doc.layers.map(function (l) { return l.seed; });
+    doc.size = cell;
+    var c = document.createElement('canvas');
+    c.width = cell * cfg.cols; c.height = cell * cfg.rows;
+    var ctx = c.getContext('2d');
+    var n = cfg.cols * cfg.rows;
+    for (var i = 0; i < n; i++) {
+      if (cfg.mode === 'random') doc.layers.forEach(function (l, k) { l.seed = (savedSeeds[k] + i * 7919) | 0; });
+      var src = renderDoc(cfg.mode === 'time' ? i / n : 0.25);
+      var L = sheetLayout(cfg, cell).cells[i];
+      var x = L.x, y = L.y;
+      // 元素先单独画在临时画布上：遮罩只作用于它，不会把刚填的背景也擦掉
+      // （踩过：直接在主画布上用 destination-in，白底一起被清成透明）
+      var tmp = document.createElement('canvas'); tmp.width = tmp.height = cell;
+      var tc = tmp.getContext('2d');
+      var s2 = L.es;
+      tc.save();
+      tc.translate(cell / 2, cell / 2);
+      if (cfg.spin) tc.rotate((i / Math.max(1, n - 1)) * cfg.spin * Math.PI / 180);
+      tc.drawImage(src, -s2 / 2, -s2 / 2, s2, s2);
+      tc.restore();
+      if (cfg.mask !== 'none') {
+        var r = s2 * 0.5, cx = cell / 2, cy = cell / 2;
+        tc.globalCompositeOperation = 'destination-in';
+        if (cfg.mask === 'hard') {
+          tc.fillStyle = '#000';
+          tc.beginPath(); tc.arc(cx, cy, r, 0, TAU); tc.fill();
+        } else {
+          var g = tc.createRadialGradient(cx, cy, r * 0.3, cx, cy, r);
+          g.addColorStop(0, 'rgba(0,0,0,1)');
+          g.addColorStop(0.72, 'rgba(0,0,0,0.82)');
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          tc.fillStyle = g;
+          tc.fillRect(0, 0, cell, cell);
+        }
+      }
+      if (cfg.bg !== 'transparent') {
+        ctx.fillStyle = cfg.bg === 'white' ? '#fff' : '#000';
+        ctx.fillRect(x, y, cell, cell);
+      }
+      ctx.drawImage(tmp, x, y);
+    }
+    doc.layers.forEach(function (l, k) { l.seed = savedSeeds[k]; });
+    doc.size = savedSize;
+    return c;
+  }
+  var sheetTimer = null;
+  function updateSheetPreview() {
+    var cap = Math.max(14, Math.min(56, Math.floor(420 / Math.max(sheetCfg.cols, sheetCfg.rows))));
+    var c = renderSheet(sheetCfg, cap);
+    var pv = $('ws-sheet-preview');
+    pv.width = c.width; pv.height = c.height;
+    var ctx = pv.getContext('2d');
+    ctx.clearRect(0, 0, pv.width, pv.height);
+    ctx.drawImage(c, 0, 0);
+    $('ws-sheet-size').textContent = '输出 ' + (sheetCfg.cols * sheetCfg.cell) + ' × ' + (sheetCfg.rows * sheetCfg.cell)
+      + ' · ' + (sheetCfg.cols * sheetCfg.rows) + ' 格 · 每格 ' + sheetCfg.cell + 'px';
+  }
+  function queueSheetPreview() { clearTimeout(sheetTimer); sheetTimer = setTimeout(updateSheetPreview, 80); }
+  function openSheet() {
+    $('ws-sheet-cols').value = sheetCfg.cols;
+    $('ws-sheet-rows').value = sheetCfg.rows;
+    $('ws-sheet-cell').value = String(sheetCfg.cell);
+    $('ws-sheet-inset').value = sheetCfg.inset;
+    $('ws-sheet-inset-num').value = sheetCfg.inset;
+    $('ws-sheet-mask').value = sheetCfg.mask;
+    $('ws-sheet-mode').value = sheetCfg.mode;
+    $('ws-sheet-bg').value = sheetCfg.bg;
+    $('ws-sheet-spin').value = sheetCfg.spin;
+    $('ws-sheet-spin-num').value = sheetCfg.spin;
+    updateSheetPreview();
+    $('ws-sheet-dialog').showModal();
+  }
+  function exportSheet() {
+    var c = renderSheet(sheetCfg);
+    var name = 'flipbook-' + sheetCfg.cols + 'x' + sheetCfg.rows + '-' + sheetCfg.cell + 'px-' + stamp() + '.png';
+    c.toBlob(function (b) { if (b) download(name, b); }, 'image/png');
+    $('ws-sheet-dialog').close();
+    toast('已导出翻转书 ' + sheetCfg.cols + '×' + sheetCfg.rows + '（每格 ' + sheetCfg.cell + 'px）');
   }
 
   /** 通道打包：直接算灰度场，不经过画布 */
@@ -1484,7 +1577,7 @@
       ['PNG 贴图', '把当前画面导出成 PNG，保留透明。这是最常用的一个。', '下载 PNG', function () { exportPNG(); }],
       ['法线图', '由当前画面的灰度生成切线空间法线图（绿通道向上），直接能给引擎用。', '下载法线图', function () { exportNormal(); }],
       ['序列帧（zip）', '把动画按帧导出成编号 PNG（每秒 24 帧就导 24 张），打包成一个 zip —— AE、UE5、Nuke 直接吃。带完整透明通道，比 GIF 实用。', '导出序列帧', function () { $('ws-export-dialog').close(); askSequence(); }],
-      ['序列图集', '把动画铺成一张网格图，供 UE5 翻转书用。', '下载图集', function () { askSprite(); }],
+      ['翻转书 / 序列图', '一张图排 N×N 格，每格一个小元素、四周留白 —— UE5 Flipbook / 粒子贴图 / Sprite Sheet 都是这个格式。每格尺寸、留白多少、柔边遮罩都能调。', '打开设置', function () { $('ws-export-dialog').close(); openSheet(); }],
       ['通道打包', '把不同图层分别写进 R / G / B / A，压成一张 PNG。', '打开设置', function () { $('ws-export-dialog').close(); openPack(); }],
       ['复制到剪贴板', '直接粘进引擎、聊天窗或文档里。', '复制', function () { copyToClipboard(); }]
     ];
@@ -1514,14 +1607,6 @@
     var name = '序列帧 ' + n + ' 帧 · 生成中…';
     toast(name);
     exportSequence(n, p).then(function (done) { if (done) persist(); });
-  }
-  function askSprite() {
-    var n = parseInt(prompt('要导出多少帧？', '16') || '0', 10);
-    if (!n || n < 2 || n > 64) { if (n) toast('帧数请填 2–64'); return; }
-    var cols = parseInt(prompt('每行几列？', String(Math.ceil(Math.sqrt(n)))) || '0', 10);
-    if (!cols || cols < 1) return;
-    exportSprite(n, cols);
-    toast('正在生成 ' + n + ' 帧…');
   }
 
   /* ───────────────────────────── 通道打包 ───────────────────────────── */
@@ -1761,6 +1846,24 @@
     $('ws-export').addEventListener('click', function () { buildExportDialog(); $('ws-export-dialog').showModal(); });
     $('ws-help').addEventListener('click', function () { $('ws-help-dialog').showModal(); });
     $('ws-pack-go').addEventListener('click', function () { exportPack({ R: packMap.R, G: packMap.G, B: packMap.B, A: packMap.A }); $('ws-pack-dialog').close(); });
+    // 翻转书：控件改动 → 存进 sheetCfg → 重画预览（防抖）
+    $('ws-sheet-go').addEventListener('click', exportSheet);
+    $('ws-sheet-cols').addEventListener('change', function (e) { sheetCfg.cols = clamp(parseInt(e.target.value, 10) || 8, 1, 16); queueSheetPreview(); });
+    $('ws-sheet-rows').addEventListener('change', function (e) { sheetCfg.rows = clamp(parseInt(e.target.value, 10) || 8, 1, 16); queueSheetPreview(); });
+    $('ws-sheet-cell').addEventListener('change', function (e) { sheetCfg.cell = parseInt(e.target.value, 10) || 128; queueSheetPreview(); });
+    $('ws-sheet-mask').addEventListener('change', function (e) { sheetCfg.mask = e.target.value; queueSheetPreview(); });
+    $('ws-sheet-mode').addEventListener('change', function (e) { sheetCfg.mode = e.target.value; queueSheetPreview(); });
+    $('ws-sheet-bg').addEventListener('change', function (e) { sheetCfg.bg = e.target.value; queueSheetPreview(); });
+    [['ws-sheet-inset', 'inset'], ['ws-sheet-spin', 'spin']].forEach(function (pair) {
+      var range = $(pair[0]), num = $(pair[0] + '-num');
+      range.addEventListener('input', function () { sheetCfg[pair[1]] = parseFloat(range.value); num.value = range.value; queueSheetPreview(); });
+      num.addEventListener('change', function () {
+        var v = parseFloat(num.value);
+        if (!isFinite(v)) v = pair[1] === 'spin' ? 0 : 0.55;
+        v = clamp(v, pair[1] === 'spin' ? 0 : 0.15, pair[1] === 'spin' ? 360 : 1);
+        sheetCfg[pair[1]] = v; range.value = v; num.value = v; queueSheetPreview();
+      });
+    });
     $('ws-save').addEventListener('click', saveDoc);
     $('ws-load').addEventListener('click', function () { $('ws-file-doc').click(); });
     $('ws-share').addEventListener('click', shareLink);
@@ -1827,6 +1930,24 @@
     },
     exportPNG: exportPNG, exportNormal: exportNormal, exportPack: exportPack, encodePNG: encodePNG,
     applySeamless: applySeamless, seamlessPixels: seamlessPixels,
+    /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
+    sheetLayout: sheetLayout,
+    sheetProbe: function (over) {
+      var cfg = { cols: sheetCfg.cols, rows: sheetCfg.rows, cell: 48, inset: sheetCfg.inset,
+        mask: sheetCfg.mask, mode: sheetCfg.mode, bg: sheetCfg.bg, spin: sheetCfg.spin };
+      if (over) Object.keys(over).forEach(function (k) { cfg[k] = over[k]; });
+      var c = renderSheet(cfg, cfg.cell);
+      var d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      var opaque = 0, total = c.width * c.height, cornerAlpha = [];
+      for (var i = 0; i < total; i++) if (d[i * 4 + 3] > 8) opaque++;
+      for (var k = 0; k < Math.min(cfg.cols, 4); k++) {
+        cornerAlpha.push(d[(k * cfg.cell) * 4 + 3]);                 // 每格左上角
+        cornerAlpha.push(d[(k * cfg.cell + cfg.cell - 1) * 4 + 3]);  // 每格右上角
+      }
+      var bgAlpha = d[3];      // 左上角像素的 alpha：白底/黑底时应该是 255
+      return { w: c.width, h: c.height, cells: cfg.cols * cfg.rows, fill: opaque / total,
+        maxCorner: Math.max.apply(null, cornerAlpha), bgAlpha: bgAlpha };
+    },
     /** 自检用：造一个 zip 出来的字节（验证 zip 结构 + 能不能被真解压工具打开） */
     zipBytes: function (entries) {
       return zipStore(entries.map(function (e) {
