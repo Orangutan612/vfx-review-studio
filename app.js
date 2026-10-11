@@ -1547,7 +1547,11 @@ function applyTheme(theme) {
 
 function initialTheme() {
   try {
-    const saved = localStorage.getItem('vfx-theme');
+    // 主题已经在 <head> 里同步定过了（防闪光），直接用它的结果，不要重新判定一次。
+  const preset = document.documentElement.dataset.theme;
+  if (preset === 'dark' || preset === 'light') return preset;
+
+  const saved = localStorage.getItem('vfx-theme');
     if (saved === 'dark' || saved === 'light') return saved;
   } catch {}
   // 没手动选过就跟随系统
