@@ -755,6 +755,19 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 .ws-sheet-pair span{color:var(--muted);font-size:13px}
 .ws-sheet-opts .ws-note{margin-top:10px}
 @media (max-width:760px){.ws-sheet-wrap{grid-template-columns:1fr}}
+.ws-ramp-wrap{display:flex;flex-direction:column;gap:14px}
+#ws-ramp-bar{
+  width:100%;height:56px;border-radius:11px;border:1px solid var(--line);
+  cursor:crosshair;touch-action:none;background:var(--surface-2);
+}
+.ws-ramp-tools{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.ws-ramp-field{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.ws-ramp-field select{padding:6px 10px}
+.ws-ramp-field input[type=color]{width:56px;height:32px;padding:2px}
+.ws-preset-list{display:flex;flex-direction:column;gap:7px}
+.ws-preset-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line-soft)}
+.ws-preset-row .ws-preset-name{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-preset-row button{padding:3px 9px;font-size:12px}
 .ws-pack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 @media (max-width:560px){.ws-pack-grid{grid-template-columns:minmax(0,1fr)}}
 .ws-pack-cell{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
