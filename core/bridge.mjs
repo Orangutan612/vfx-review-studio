@@ -14,11 +14,11 @@
  *   - 作品视频从头到尾没离开过浏览器（逐帧解码用的是 WebCodecs）
  *   - 没有「我们的服务器」，所以也没有任何地方能收集这些数据
  */
-import { config, configStatus, ENV_PATH, reloadConfig, writeEnvFile } from './config.mjs?v=1791747172816';
-import { PROVIDERS, publicProviders } from './providers.mjs?v=1791747172816';
-import { testConnection, saveSetup, setupState } from './setup.mjs?v=1791747172816';
-import { selectEvidence, runReview, FEEDBACK_COUNTS, EVIDENCE_FRAMES } from './review.mjs?v=1791747172816';
-import { listReferences, saveReference, deleteReference, readReferenceBlob, MAX_REFERENCE_BYTES } from './references.mjs?v=1791747172816';
+import { config, configStatus, ENV_PATH, reloadConfig, writeEnvFile } from './config.mjs?v=1791747347948';
+import { PROVIDERS, publicProviders } from './providers.mjs?v=1791747347948';
+import { testConnection, saveSetup, setupState } from './setup.mjs?v=1791747347948';
+import { selectEvidence, runReview, FEEDBACK_COUNTS, EVIDENCE_FRAMES } from './review.mjs?v=1791747347948';
+import { listReferences, saveReference, deleteReference, readReferenceBlob, MAX_REFERENCE_BYTES } from './references.mjs?v=1791747347948';
 
 export let MODE = 'unknown';   // 'local' | 'static'
 
