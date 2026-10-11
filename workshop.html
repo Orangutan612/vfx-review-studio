@@ -153,7 +153,11 @@
               <option value="1024">1024 × 1024</option>
             </select>
           </div>
-          <p class="ws-note">图层和参数会存进文档里，能存成文件、也能进分享链接。</p>
+          <label class="ws-check" style="margin-top:6px">
+      <input id="ws-flatten" type="checkbox">
+      <span>导出时压成黑底（不保留透明）</span>
+    </label>
+    <p class="ws-note">图层和参数会存进文档里，能存成文件、也能进分享链接。</p>
           <div class="ws-btn-row">
             <button id="ws-save" class="button secondary small" type="button">存文件</button>
             <button id="ws-load" class="button secondary small" type="button">读文件</button>
@@ -161,7 +165,17 @@
           </div>
         </div>
       </div>
-    </aside>
+    
+<div class="ws-card">
+  <div class="ws-card-head"><h2>我的预设</h2></div>
+  <div class="ws-card-body">
+    <div id="ws-preset-list" class="ws-preset-list"></div>
+    <button id="ws-preset-save" class="button secondary small" type="button" style="margin-top:9px">把当前这套存成预设</button>
+    <p class="ws-note">存在这台电脑的浏览器里，不会上传。</p>
+  </div>
+</div>
+
+</aside>
   </div>
 </main>
 
@@ -205,6 +219,9 @@
         </div>
         <div class="ws-param"><div class="ws-param-label">每格尺寸</div>
           <select id="ws-sheet-cell"><option>32</option><option>64</option><option selected>128</option><option>256</option><option>512</option></select><div></div></div>
+        <div class="ws-param"><div class="ws-param-label">格间距</div>
+          <input id="ws-sheet-gap" type="range" min="0" max="24" step="1" value="0">
+          <input id="ws-sheet-gap-num" class="ws-num" type="number" min="0" max="24" step="1" value="0"></div>
         <div class="ws-param"><div class="ws-param-label">元素占比</div>
           <input id="ws-sheet-inset" type="range" min="0.15" max="1" step="0.01" value="0.55">
           <input id="ws-sheet-inset-num" class="ws-num" type="number" min="0.15" max="1" step="0.01" value="0.55"></div>
@@ -224,6 +241,36 @@
   <div class="ws-dialog-foot">
     <button class="button secondary" type="button" data-close>取消</button>
     <button id="ws-sheet-go" class="button primary" type="button">导出 PNG</button>
+  </div>
+</dialog>
+
+<!-- ── 色标编辑器 ── -->
+<dialog id="ws-ramp-dialog" class="ws-dialog ws-dialog-wide">
+  <div class="ws-dialog-head">
+    <div>
+      <h2>编辑色阶</h2>
+      <p>在色带上点一下加一个色标；拖动色标改位置；选中后改颜色或删掉。至少留两个。</p>
+    </div>
+    <button class="ws-dialog-x" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="ws-dialog-body">
+    <div class="ws-ramp-wrap">
+      <canvas id="ws-ramp-bar" width="640" height="56"></canvas>
+      <div class="ws-ramp-tools">
+        <label class="ws-ramp-field">载入内置
+          <select id="ws-ramp-from"></select>
+        </label>
+        <label class="ws-ramp-field">这个色标的颜色
+          <input id="ws-ramp-color" type="color" value="#ff8932">
+        </label>
+        <button id="ws-ramp-del" class="button secondary small" type="button">删除这个色标</button>
+        <span id="ws-ramp-info" class="ws-dim"></span>
+      </div>
+    </div>
+  </div>
+  <div class="ws-dialog-foot">
+    <button class="button secondary" type="button" data-close>取消</button>
+    <button id="ws-ramp-ok" class="button primary" type="button">应用</button>
   </div>
 </dialog>
 
