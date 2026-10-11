@@ -477,7 +477,7 @@
   });
 
   TYPES.push({
-    id: 'petals', name: '花瓣', cat: '放射', tags: ['花', '绽放', '圣光'], tile: true, anim: true,
+    id: 'petals', name: '花瓣', cat: '放射', tags: ['花', '绽放', '圣光'], anim: true, tile: false,
     params: [{ k: 'count', label: '花瓣数', min: 3, max: 24, step: 1, def: 6 },
       { k: 'sharp', label: '瓣形', min: 0.3, max: 4, step: 0.05, def: 1.2 },
       { k: 'fill', label: '大小', min: 0.1, max: 1.3, step: 0.02, def: 0.8 },
@@ -546,7 +546,7 @@
 
   /* ── 第二批生成器：补齐「光」这一族（这一族才是让人想用的东西）── */
   TYPES.push({
-    id: 'glow', name: '辉光', cat: '放射', tags: ['光', '发光', '柔和'], anim: true,
+    id: 'glow', name: '辉光', cat: '放射', tags: ['光', '发光', '柔和'], anim: true, tile: false,
     params: [{ k: 'core', label: '核心', min: 0.02, max: 0.6, step: 0.01, def: 0.16 },
       { k: 'fall', label: '衰减', min: 0.4, max: 8, step: 0.1, def: 2.4 },
       { k: 'ring', label: '光环', min: 0, max: 1, step: 0.02, def: 0.3 },
@@ -563,7 +563,7 @@
     }
   });
   TYPES.push({
-    id: 'flash', name: '闪光', cat: '放射', tags: ['光', '闪光', '打击'], anim: true,
+    id: 'flash', name: '闪光', cat: '放射', tags: ['光', '闪光', '打击'], anim: true, tile: false,
     params: [{ k: 'core', label: '核心', min: 0.02, max: 0.5, step: 0.01, def: 0.14 },
       { k: 'spikes', label: '尖刺数', min: 0, max: 12, step: 1, def: 6 },
       { k: 'len', label: '尖刺长度', min: 0.1, max: 1.2, step: 0.02, def: 0.5 },
@@ -582,7 +582,7 @@
     }
   });
   TYPES.push({
-    id: 'flare', name: '耀斑', cat: '放射', tags: ['光', '发光', '镜头'], anim: true,
+    id: 'flare', name: '耀斑', cat: '放射', tags: ['光', '发光', '镜头'], anim: true, tile: false,
     params: [{ k: 'core', label: '核心', min: 0.02, max: 0.4, step: 0.01, def: 0.1 },
       { k: 'streak', label: '横向光带', min: 0, max: 1.5, step: 0.05, def: 0.85 },
       { k: 'halo', label: '光环', min: 0, max: 1, step: 0.02, def: 0.5 },
@@ -606,7 +606,7 @@
     }
   });
   TYPES.push({
-    id: 'starflare', name: '星芒', cat: '放射', tags: ['光', '发光', '星芒'], anim: true,
+    id: 'starflare', name: '星芒', cat: '放射', tags: ['光', '发光', '星芒'], anim: true, tile: false,
     params: [{ k: 'points', label: '星芒数', min: 2, max: 24, step: 1, def: 12 },
       { k: 'core', label: '核心大小', min: 0.01, max: 0.35, step: 0.005, def: 0.05 },
       { k: 'arms', label: '臂长', min: 0.3, max: 1.6, step: 0.02, def: 1.25 },
@@ -630,7 +630,7 @@
     }
   });
   TYPES.push({
-    id: 'glare', name: '眩光', cat: '放射', tags: ['光', '发光', '横向'], anim: true,
+    id: 'glare', name: '眩光', cat: '放射', tags: ['光', '发光', '横向'], anim: true, tile: false,
     params: [{ k: 'len', label: '长度', min: 0.2, max: 2, step: 0.05, def: 1.1 },
       { k: 'height', label: '厚度', min: 0.01, max: 0.4, step: 0.005, def: 0.07 },
       { k: 'core', label: '核心', min: 0.02, max: 0.5, step: 0.01, def: 0.15 },
@@ -654,7 +654,7 @@
     }
   });
   TYPES.push({
-    id: 'godray', name: '神光', cat: '放射', tags: ['光', '发光', '体积光'], anim: true,
+    id: 'godray', name: '神光', cat: '放射', tags: ['光', '发光', '体积光'], anim: true, tile: false,
     params: [{ k: 'count', label: '光柱数', min: 3, max: 40, step: 1, def: 12 },
       { k: 'spread', label: '发散', min: 0.2, max: 3, step: 0.05, def: 1.1 },
       { k: 'len', label: '长度', min: 0.3, max: 1.6, step: 0.02, def: 1 },
@@ -677,9 +677,9 @@
     }
   });
   TYPES.push({
-    id: 'bokeh', name: '散景', cat: '放射', tags: ['光', '发光', '摄影'], anim: true,
+    id: 'bokeh', name: '散景', cat: '放射', tags: ['光', '发光', '摄影'], anim: true, tile: false,
     params: [{ k: 'count', label: '光斑数', min: 4, max: 80, step: 1, def: 24 },
-      { k: 'size', label: '大小', min: 0.02, max: 0.5, step: 0.01, def: 0.15 },
+      { k: 'size', label: '大小', min: 0.02, max: 0.5, step: 0.01, def: 0.13 },
       { k: 'vary', label: '大小差异', min: 0, max: 1, step: 0.02, def: 0.7 },
       { k: 'ring', label: '金边', min: 0, max: 1, step: 0.02, def: 0.5 },
       { k: 'spin', label: '旋转', min: 0, max: 1, step: 0.02, def: 0.12 },
@@ -688,7 +688,7 @@
       var v = 0;
       for (var i = 0; i < p.count; i++) {
         var a = hash2(i, 1, s) * TAU + t * p.spin * TAU;
-        var rad = Math.sqrt(hash2(i, 2, s)) * 0.72;
+        var rad = Math.sqrt(hash2(i, 2, s)) * 0.42;      // 原来 0.72 会让光斑跑到画面外（被切平）
         var cx = 0.5 + Math.cos(a) * rad, cy = 0.5 + Math.sin(a) * rad;
         var r = p.size * (0.35 + hash2(i, 3, s) * p.vary * 1.65);
         var d = Math.hypot(x - cx, y - cy);
@@ -700,7 +700,7 @@
     }
   });
   TYPES.push({
-    id: 'spark', name: '火花', cat: '图形', tags: ['光', '粒子', '打击'], anim: true,
+    id: 'spark', name: '火花', cat: '图形', tags: ['光', '粒子', '打击'], anim: true, tile: false,
     params: [{ k: 'count', label: '数量', min: 4, max: 60, step: 1, def: 20 },
       { k: 'size', label: '大小', min: 0.004, max: 0.08, step: 0.002, def: 0.016 },
       { k: 'tail', label: '拖尾', min: 0, max: 1, step: 0.02, def: 0.45 },
@@ -895,9 +895,9 @@
 
   /* ── 第三批：几何形状 / 质感 / 数字风格（对齐参考里值得拿的那些）── */
   TYPES.push({
-    id: 'polygon', name: '多边形', cat: '图形', tags: ['几何', '图形', 'UI'], anim: true,
+    id: 'polygon', name: '多边形', cat: '图形', tags: ['几何', '图形', 'UI'], anim: true, tile: false,
     params: [{ k: 'sides', label: '边数', min: 3, max: 12, step: 1, def: 6 },
-      { k: 'size', label: '大小', min: 0.1, max: 1.4, step: 0.02, def: 0.85 },
+      { k: 'size', label: '大小', min: 0.1, max: 1.4, step: 0.02, def: 0.62 },
       { k: 'round', label: '圆角', min: 0, max: 1, step: 0.02, def: 0.15 },
       { k: 'fill', label: '填充', min: 0, max: 1, step: 0.02, def: 1 },
       { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
@@ -914,13 +914,14 @@
         var line = sstep(p.size * 0.07 + 0.004, 0, Math.abs(r - rb));
         v = lerp(v, line, 1 - p.fill);
       }
-      return clamp(Math.pow(clamp(v, 0, 1), 1 / (0.4 + p.round * 2)), 0, 1);
+      v = Math.pow(clamp(v, 0, 1), 1 / (0.4 + p.round * 2));
+      return clamp(v * (0.45 + 0.55 * Math.pow(Math.max(0, 1 - r / (p.size * 0.5 * 1.1)), 0.7)), 0, 1);
     }
   });
   TYPES.push({
-    id: 'star', name: '星形', cat: '图形', tags: ['星', '几何', '图形'], anim: true,
+    id: 'star', name: '星形', cat: '图形', tags: ['星', '几何', '图形'], anim: true, tile: false,
     params: [{ k: 'points', label: '角数', min: 3, max: 16, step: 1, def: 5 },
-      { k: 'size', label: '大小', min: 0.1, max: 1.4, step: 0.02, def: 0.9 },
+      { k: 'size', label: '大小', min: 0.1, max: 1.4, step: 0.02, def: 0.66 },
       { k: 'inner', label: '内径', min: 0.1, max: 0.9, step: 0.02, def: 0.45 },
       { k: 'fill', label: '填充', min: 0, max: 1, step: 0.02, def: 1 },
       { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
@@ -937,14 +938,14 @@
         var line = sstep(p.size * 0.06 + 0.004, 0, Math.abs(r - rb));
         v = lerp(v, line, 1 - p.fill);
       }
-      return clamp(v, 0, 1);
+      return clamp(Math.max(v, 0) * (0.45 + 0.55 * Math.pow(Math.max(0, 1 - r / (p.size * 0.5 * 1.1)), 0.7)), 0, 1);
     }
   });
   TYPES.push({
-    id: 'cross', name: '十字', cat: '图形', tags: ['十字', '准星', 'UI'], tile: true, anim: true,
+    id: 'cross', name: '十字', cat: '图形', tags: ['十字', '准星', 'UI'], anim: true, tile: false,
     params: [{ k: 'width', label: '粗细', min: 0.01, max: 0.25, step: 0.005, def: 0.055 },
-      { k: 'len', label: '长度', min: 0.1, max: 0.7, step: 0.01, def: 0.45 },
-      { k: 'glow', label: '辉光', min: 0, max: 1, step: 0.02, def: 0.45 },
+      { k: 'len', label: '长度', min: 0.1, max: 0.7, step: 0.01, def: 0.36 },
+      { k: 'glow', label: '辉光', min: 0, max: 1, step: 0.02, def: 0.42 },
       { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
       { k: 'soft', label: '柔化', min: 0.005, max: 0.2, step: 0.005, def: 0.02 }],
     fn: function (p, x, y, t, s) {
@@ -958,12 +959,12 @@
         var g = sstep(p.width * 3.2, 0, Math.min(u, v));
         out = Math.max(out, p.glow * g);
       }
-      return clamp(out, 0, 1);
+      return clamp(out * (0.5 + 0.5 * Math.pow(Math.max(0, 1 - Math.min(u, v) / (p.len * 1.05)), 0.6)), 0, 1);
     }
   });
   TYPES.push({
-    id: 'crescent', name: '月牙', cat: '放射', tags: ['月牙', '形状', '魔法'], anim: true,
-    params: [{ k: 'size', label: '大小', min: 0.15, max: 1.2, step: 0.02, def: 0.7 },
+    id: 'crescent', name: '月牙', cat: '放射', tags: ['月牙', '形状', '魔法'], anim: true, tile: false,
+    params: [{ k: 'size', label: '大小', min: 0.15, max: 1.2, step: 0.02, def: 0.55 },
       { k: 'cut', label: '缺口感', min: 0.1, max: 1.4, step: 0.02, def: 0.62 },
       { k: 'offset', label: '偏移', min: 0.05, max: 0.7, step: 0.01, def: 0.28 },
       { k: 'angle', label: '角度', min: 0, max: 360, step: 5, def: 0 },
@@ -977,14 +978,14 @@
       var d2 = Math.hypot(u - R * p.offset * 2 * 0.5 - R * 0.2, v);
       var outer = sstep(-p.soft, p.soft, R - d1);
       var inner = sstep(-p.soft, p.soft, R * p.cut - d2);
-      return clamp(outer * (1 - inner), 0, 1);
+      return clamp(outer * (1 - inner) * (0.55 + 0.45 * sstep(R, R * 0.25, d2)), 0, 1);
     }
   });
   TYPES.push({
-    id: 'metaballs', name: '融球', cat: '放射', tags: ['有机', '融球', '魔法'], anim: true,
-    params: [{ k: 'count', label: '球数', min: 2, max: 24, step: 1, def: 8 },
-      { k: 'size', label: '大小', min: 0.05, max: 0.6, step: 0.01, def: 0.2 },
-      { k: 'thr', label: '阈值', min: 0.2, max: 3, step: 0.05, def: 1 },
+    id: 'metaballs', name: '融球', cat: '放射', tags: ['有机', '融球', '魔法'], anim: true, tile: false,
+    params: [{ k: 'count', label: '球数', min: 2, max: 24, step: 1, def: 6 },
+      { k: 'size', label: '大小', min: 0.05, max: 0.6, step: 0.01, def: 0.12 },
+      { k: 'thr', label: '阈值', min: 0.2, max: 3, step: 0.05, def: 1.4 },
       { k: 'speed', label: '游动', min: 0, max: 1, step: 0.02, def: 0.25 },
       { k: 'edge', label: '边缘柔化', min: 0.01, max: 0.5, step: 0.01, def: 0.1 }],
     fn: function (p, x, y, t, s) {
@@ -1190,7 +1191,7 @@
     return {
       id: 'L' + (uid++), type: T.id, name: T.name, visible: true, opacity: 1, blend: 'source-over',
       alphaFromLum: false, color: { mode: 'gray', ramp: '火焰', solid: '#ff8932' },
-      tile: true, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false },
+      tile: T.tile !== false, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false },
       seed: seed === undefined ? ((Math.random() * 1e6) | 0) : seed, params: params
     };
   }
@@ -1454,7 +1455,13 @@
     '    n += a; a *= 0.5; f *= 2.0;',
     '  }',
     '  return s / max(n, 1e-5);',
-    '}'
+    '}',
+    '// ── GLSL 图元库（SDF + 抗锯齿）：形状类都从这里搭，别再一个类型一个手搓公式 ──',
+    'float pxw(){ return 1.0 / uSize.x; }',
+    'float cov(float d, float soft){ return clamp(0.5 - d / (2.0 * max(soft, pxw())), 0.0, 1.0); }',
+    'float smin(float a, float b, float k){ k = max(k, 1e-5); float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }',
+    'float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-8), 0.0, 1.0); return length(pa - ba * h); }',
+    'float gauss(float r, float s){ return exp(-(r * r) / (2.0 * max(s, 1e-5) * max(s, 1e-5))); }'
   ].join('\n');
   var GL_VERT = ['#version 300 es', 'in vec2 aPos;', 'void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }'].join('\n');
 
@@ -1537,7 +1544,8 @@
       '  float rb = R * cos(seg * 0.5) / max(0.15, cos(beta));\n' +
       '  float v = sstep(-uP[5], uP[5], rb - r);\n' +
       '  if (uP[3] < 1.0) v = mix(v, sstep(uP[1] * 0.07 + 0.004, 0.0, abs(r - rb)), 1.0 - uP[3]);\n' +
-      '  return sat(pow(sat(v), 1.0 / (0.4 + uP[2] * 2.0)));\n' +
+      '  v = pow(sat(v), 1.0 / (0.4 + uP[2] * 2.0));\n' +
+      '  return sat(v * (0.45 + 0.55 * pow(max(0.0, 1.0 - r / (uP[1] * 0.5 * 1.1)), 0.7)));\n' +
       '}',
     star: 'float gen(vec2 uv){\n' +
       '  vec2 d = uv - 0.5; float r = length(d);\n' +
@@ -1551,6 +1559,7 @@
       '  return sat(v);\n' +
       '}'
   };
+
 
   function glInit() {
     if (GL !== null) return !!GL;
@@ -1675,6 +1684,23 @@
   function glReady() { return glInit(); }
   function glTypes() { return Object.keys(GLSL_BODY); }
 
+  /** 边缘淡出：让内容在贴到画布边之前就淡到 0。
+      为什么需要：像融球 / 散景 / 神光 这种「画面里放一个元素」的类型，元素一旦跑出边界就会被**切平**，
+      看着像做坏了。平铺类（噪波 / 图案）不需要，它们本来就该顶到边。 */
+  var FIT_TYPES = { polygon: 1, star: 1, cross: 1, crescent: 1, metaballs: 1, bokeh: 1, spark: 1,
+    godray: 1, glow: 1, flash: 1, starflare: 1, flare: 1, glare: 1, petals: 1, rings: 1, shock: 1 };
+  function edgeWindow(f, size, margin) {
+    var m = margin === undefined ? 0.07 : margin;
+    for (var y = 0; y < size; y++) {
+      var v = y / (size - 1);
+      var wy = sstep(0, m, v) * sstep(0, m, 1 - v);
+      for (var x = 0; x < size; x++) {
+        var u = x / (size - 1);
+        f[y * size + x] *= wy * sstep(0, m, u) * sstep(0, m, 1 - u);
+      }
+    }
+    return f;
+  }
   /** 只算灰度场（0..1），不碰颜色 —— 后处理和自检都吃这个 */
   var lastPath = 'CPU', forceCpu = false;
   function renderField(layer, size, t) {
@@ -1683,7 +1709,11 @@
     // 先试 GPU：只把「算灰度场」搬过去，算完读回字节流，后面所有处理照旧
     if (!forceCpu) {
       var g = glField(layer, size, t);
-      if (g) { lastPath = 'GPU'; return applyPostFx(g, size, layer.fx, t); }
+      if (g) {
+        lastPath = 'GPU';
+        if (FIT_TYPES[layer.type] && layer.tile === false) g = edgeWindow(g, size);
+        return applyPostFx(g, size, layer.fx, t);
+      }
     }
     lastPath = 'CPU';
     var fn = T.fn, P = layer.params, seed = layer.seed | 0;
@@ -1717,6 +1747,7 @@
         f[y * size + x] = (!(v2 >= 0)) ? 0 : (v2 > 1 ? 1 : v2);   // NaN / 负数一律当 0，防呆
       }
     }
+    if (FIT_TYPES[layer.type] && layer.tile === false) f = edgeWindow(f, size);
     return applyPostFx(f, size, layer.fx, t);
   }
   /** 把灰度场渲染到离屏画布上（上色 + 可选「亮度转透明」） */
@@ -3202,6 +3233,39 @@
     /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
     sheetLayout: sheetLayout,
     gpuTypes: function () { return glTypes(); },
+    /** 诊断用：把某个类型按默认参数渲染成一张灰度图，返回 canvas（用来铺联络表挑毛病） */
+    typeThumb: function (typeId, size) {
+      var T = TYPE_BY_ID[typeId], P = {};
+      T.params.forEach(function (p) { P[p.k] = p.def; });
+      var n = size || 96;
+      var layer = { type: typeId, params: P, seed: 12345, tile: T.tile !== false, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } };
+      var f = renderField(layer, n, 0.35);
+      var c = document.createElement('canvas'); c.width = c.height = n;
+      var ctx = c.getContext('2d');
+      var img = ctx.createImageData(n, n), d = img.data;
+      for (var i = 0; i < n * n; i++) {
+        var v = Math.round((f[i] || 0) * 255);
+        d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return c;
+    },
+    /** 诊断用：量一个类型四条边的亮度（判断有没有卡在边界上） */
+    edgeProbe: function (typeId, size) {
+      var T = TYPE_BY_ID[typeId], P = {};
+      T.params.forEach(function (p) { P[p.k] = p.def; });
+      var n = size || 96;
+      var layer = { type: typeId, params: P, seed: 12345, tile: T.tile !== false, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } };
+      var f = renderField(layer, n, 0.35);
+      var sum = 0, cnt = 0, inner = 0, icnt = 0;
+      for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+        var v = f[y * n + x];
+        var edge = (x === 0 || y === 0 || x === n - 1 || y === n - 1);
+        if (edge) { sum += v; cnt++; } else { inner += v; icnt++; }
+      }
+      return { id: typeId, tile: T.tile !== false, edge: sum / cnt, inner: inner / icnt,
+        ratio: (inner / icnt) > 1e-4 ? (sum / cnt) / (inner / icnt) : 0 };
+    },
     gpuDiag: function () {
       var ready = glInit();
       var out = { ready: !!ready, bad: {}, u8: ready ? GL.u8 : null, fmt: ready ? GL.rtype : null };
