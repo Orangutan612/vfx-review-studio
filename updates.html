@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+<script src="./frame-guard.js?v=1791745037458"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：新增贴图台、站点标识重做、自检扩容。">
@@ -21,7 +22,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791744059936">
+<link rel="stylesheet" href="./style.css?v=1791745037458">
 </head>
 <body>
 
@@ -45,13 +46,37 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.0</h1>
-    <p class="upd-lead">贴图台接上 <strong>GPU（WebGL2 片元着色器）</strong>：一个 512² 图层的渲染从 25–80ms 降到 <strong>4ms</strong>；顺带修掉「部署了新版本却看不到」的缓存问题。</p>
+    <h1>v1.4.2</h1>
+    <p class="upd-lead">补了一轮<strong>安全加固</strong>：把"已经安全"变成"每次改动都会被自检验证"，并把账号侧的防护清单写进 README。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.4.0</h2><span class="ws-dim">换渲染内核</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.4.2</h2><span class="ws-dim">安全加固</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>把安全变成"每次都会被验证"（新）</b><span>审计了一遍真实风险，并加了 3 条永久自检：<b>报告里的模型输出必须被转义</b>（喂一段 <code>&lt;img onerror=...&gt;</code> 进去验证）、<b>部署目录里不许出现任何外部脚本 / 样式</b>（供应链风险归零）、<b>评审链路不许接触 API Key</b>（Key 只进 LLM 客户端）。</span></li>
+        <li><b>README 加了「安全」章节</b><span>把所有风险与对策列成表：零外链、全转义、Key 的边界、防内嵌，以及<b>需要你自己做的</b>（GitHub 开 2FA、不加陌生协作者、部署前看 diff）。也写明了<b>做不到的</b>：GitHub Pages 不让设响应头，所以 HSTS / CSP 由不了我们 —— 路线是"把能攻击的面收窄"，不是假装设了头。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.1</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>v1.4.1</h2><span class="ws-dim">防内嵌</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>本站也防内嵌（新）</b><span>别的网页不能再把本站塞进 iframe 里 —— 免得有人顶着我们的界面挂广告、冒充我们。实现方式要说明白：<b>GitHub Pages 不能自定义响应头</b>，所以 <code>X-Frame-Options</code> / CSP 都用不了；而 <code>frame-ancestors</code> 写在 <code>&lt;meta&gt;</code> 里<b>规范上是被忽略的</b>（只在响应头里生效）。静态站只剩脚本这一条路：检测到自己被嵌 → 先尝试跳出框，跳不出去就把页面盖住并给出提示。</span></li>
+        <li><b>只挡「别人嵌我们」，不影响「我们嵌别人」</b><span>贴图工具页照常内嵌 gameanimation 的 TextureCreate（自检里专门盯着这条，防止以后误伤）。另外留了主动放行的口子：地址后面加 <code>?embed=1</code> 就允许被内嵌，自己想嵌自己时用得上。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.0</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>v1.4.0</h2><span class="ws-dim">换渲染内核</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
         <li><b>接上 GPU 渲染（WebGL2 片元着色器）</b><span>把渲染从 CPU 搬到 <strong>GPU（WebGL2 片元着色器）</strong>。一个 512² 图层从 <strong>25–80ms 降到 4ms</strong> —— 拖滑杆不再卡顿，这才是"顺手"的关键。架构上只把「算灰度场」搬到 GPU，上色 / 后处理 / 图层 / 导出全部沿用原管线；<strong>WebGL 不可用时自动回落 CPU</strong>，不会因为 GPU 挂了就整个不能用。这一版最终把 <strong>54 个生成器全部搬上了 GPU</strong>（见下方）。</span></li>
@@ -60,7 +85,8 @@
         <li><b>按"联络表"逐个修手感和剪贴画感</b><span>把 54 个生成器全部铺成一张联络表逐个看，抓出并修掉：<strong>边缘被切平</strong>（14 个"画面里放元素"的类型现在会在贴边前淡出，融球/散景/神光不再糊在边上）、散景光斑跑到框外的放置 bug、多边形/星形/十字/月牙的<strong>纯白硬边剪贴画感</strong>（加了内部明暗，有体积了）、融球和散景默认太大糊成一坨。</span></li>
         <li><b>用 SDF 图元重做 6 个最难看的（GPU）</b><span>建了一套 GLSL 图元库（<code>cov</code> 抗锯齿、<code>smin</code> 平滑并集、<code>sdSeg</code> 线段距离、<code>gauss</code>），并用它重写了融球 / 散景 / 火花 / 细胞 / 十字 / 月牙 —— 融球现在是独立柔边球体、散景是有边框的圆盘、火花是带拖尾的胶囊、细胞有明暗分块。GPU 类型从 8 个增到 <strong>14 个</strong>。</span></li>
         <li><b>第二批 6 个也重做了（GPU）</b><span>神光（从画面上方洒下的宽柔光柱）· 矩阵（真正下落的数字雨，带拖尾和亮头）· 水晶（有棱面明暗的晶格）· 编织（一横一竖交织的线）· 马赛克（带斜边和间隙的砖块）· 做旧（多层污渍而不是细麻点）。<strong>GPU 类型 14 → 20 个</strong>。</span></li>
-        <li><b>贴图工具页加了第二个来源</b><span>内嵌页顶部现在可以切换：<b>TextureCreate</b>（gameanimation.info）和 <b>贴图工坊</b>（vfxmento.xyz）。哪个连得上用哪个，「新窗口打开」也跟着切。</span></li>
+        <li><b>归属声明写清楚 + 仓库简介改准</b><span>内嵌来源补上国内可直连的「贴图工坊」(vfxmento.xyz)，并在 README 里写明：两个页面都只是 <code>iframe</code> <strong>引用原站</strong>，代码与内容属于原作者，本站<strong>不复制、不改写、不再分发</strong>，<strong>原作者要求即可移除</strong>。另外 GitHub 仓库简介原写「自带 API Key」容易被误解成"点进网页就有 key 用"，已改成「用你自己的模型 API Key，站点不提供」。</span></li>
+        <li><b>贴图工具页只保留一个来源</b><span>一度加过国内可直连的「贴图工坊」(vfxmento.xyz)，但实测它<b>拒绝被内嵌</b>（iframe 里显示「拒绝连接」，站点本身是活的，是不允许被别的网页嵌）。既然用不了就<b>下掉</b>了，README 与说明里也一并删掉。现在只保留 gameanimation 的 TextureCreate，并把「拒绝连接」的成因写进了兜底提示。</span></li>
         <li><b>修：缩略图和实际预览「不是一张脸」</b><span>根因有两条：① 左栏缩略图走的是 <b>CPU</b> 函数，舞台走的是 <b>GPU 着色器</b>，两条路算的不是一个东西；② 我 GLSL 里的哈希是自己写的浮点版，和 CPU 那套 <b>32 位整数位运算哈希</b>结构不同，所以 GPU 出来的噪波偏"糊"。现在<b>缩略图和舞台走同一条渲染路径</b>，并且把 CPU 的哈希/梯度表<b>逐位等价地移植进着色器</b>—— 实测两边像素差 1.5%（纯 8 位量化误差）。</span></li>
         <li><b>54 个生成器全部上了 GPU</b><span>把剩下 30 个（噪波族 / 图案族 / 自然现象族）一次性全搬到片元着色器，<strong>现在每一个类型都跑 GPU</strong>，拖滑杆基本不掉帧。做法是把它们的参数和算法逐个对照着转 —— 不是重画，是同一套数学换到 GPU 上算。</span></li>
         <li><b>第三批 4 个也重做了（GPU）</b><span>闪电（真正的分叉雷，线段距离场 + 辉光，不再是抖动的曲线）· 溶解（有序抖动 + 噪声，边缘带亮边）· 能量场（加强，不再发灰）· 等离子（加了域扭曲，不再退化成同心圆）。<strong>GPU 类型 20 → 24 个</strong>。</span></li>
