@@ -1423,9 +1423,16 @@
     '#define PI 3.14159265359',
     'float sat(float x){ return clamp(x, 0.0, 1.0); }',
     'float sstep(float a, float b, float x){ float t = clamp((x - a) / (b - a + 1e-6), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }',
-    'float hash21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
-    'float h2(vec2 ip, float seed){ return hash21(ip + vec2(seed * 0.1271, seed * 0.3117)); }',
-    'vec2 grad2(vec2 ip, float seed){ float a = h2(ip, seed) * TAU; return vec2(cos(a), sin(a)); }',
+    '// 和 CPU 的 hash2 逐位等价（32 位整数位运算，JS 的 ToInt32 与 GLSL uint 回绕一致）——',
+    '// 这样 GPU 和 CPU 算出来的噪声是同一个，缩略图才不会和舞台「不是一张脸」',
+    'uint h32(int x, int y, int sd){',
+    '  uint h = uint(x) * 374761393u + uint(y) * 668265263u + uint(sd) * 1274126177u;',
+    '  h = (h ^ (h >> 13)) * 1103515245u;',
+    '  return h ^ (h >> 16);',
+    '}',
+    'float h2(vec2 ip, float seed){ return float(h32(int(ip.x), int(ip.y), int(seed))) / 4294967296.0; }',
+    '// GRAD8 就是 0°,45°,90°… 的八个单位向量，用 cos/sin 精确复现',
+    'vec2 grad2(vec2 ip, float seed){ int k = int(h2(ip, seed) * 8.0) & 7; float a = float(k) * 0.785398163398; return vec2(cos(a), sin(a)); }',
     'float pnoise(vec2 p, float per, float seed){',
     '  vec2 i = floor(p), f = p - i;',
     '  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);',
@@ -2974,8 +2981,11 @@
     var P = {};
     T.params.forEach(function (p) { P[p.k] = p.def; });
     var seed = 12345;
+    // 缩略图必须和舞台走同一条渲染路径，否则就是「缩略图一个样、点开另一个样」
+    var f = renderField({ type: T.id, params: P, seed: seed, tile: T.tile !== false, fx: {},
+      tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } }, S, 0.25);
     for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
-      var v = T.fn(P, x / S, y / S, 0.25, seed);
+      var v = f ? f[y * S + x] : T.fn(P, x / S, y / S, 0.25, seed);
       v = v < 0 ? 0 : v > 1 ? 1 : v;
       var g = (v * 255) | 0, i = (y * S + x) * 4;
       d[i] = d[i + 1] = d[i + 2] = g; d[i + 3] = 255;
