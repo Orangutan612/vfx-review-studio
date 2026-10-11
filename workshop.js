@@ -24,6 +24,11 @@
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function smooth(t) { return t * t * (3 - 2 * t); }
+  /** smoothstep：把 0..1 的线性过渡变成「两头缓、中间快」，边缘不再是硬邦邦的圆角 */
+  function sstep(e0, e1, x) {
+    var t = clamp((x - e0) / Math.max(1e-6, e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
 
   /** 快速哈希：同一个 (x,y,seed) 永远同一个数，保证「同参数同图」 */
   function hash2(x, y, seed) {
@@ -483,7 +488,7 @@
       var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2;
       var a = Math.atan2(dy, dx) + t * p.spin * TAU;
       var rm = p.fill * Math.pow(Math.abs(Math.cos(a * p.count / 2)), p.sharp);
-      return clamp((rm - r) / p.soft + 0.5, 0, 1);
+      return clamp(sstep(-p.soft, p.soft, rm - r), 0, 1);
     }
   });
   TYPES.push({
@@ -567,9 +572,13 @@
     fn: function (p, x, y, t, s) {
       var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2, a = Math.atan2(dy, dx);
       var pul = 1 + p.pulse * 0.45 * Math.sin(t * TAU * 2);
-      var k = p.spikes > 0 ? Math.pow(Math.abs(Math.cos(a * p.spikes / 2)), 2.4) : 0;
-      var R = (p.core + p.len * k) * pul;
-      return clamp(Math.pow(Math.max(0, 1 - r / Math.max(0.001, R)), p.soft), 0, 1);
+      var n = Math.max(2, Math.round(p.spikes)), seg = TAU / n;
+      var beta = ((a % seg) + seg) % seg - seg / 2;
+      var w = seg * 0.09;                                       // 尖刺角宽（固定得比较细）
+      var spike = n > 1 ? Math.exp(-(beta * beta) / (2 * w * w)) : 0;
+      var R = (p.core + p.len * spike) * pul;
+      var v = Math.pow(sstep(0, 1, clamp(1 - r / Math.max(0.001, R), 0, 1)), p.soft);
+      return clamp(Math.max(v, Math.exp(-(r * r) / (2 * (p.core * pul) * (p.core * pul)))), 0, 1);
     }
   });
   TYPES.push({
@@ -598,21 +607,26 @@
   });
   TYPES.push({
     id: 'starflare', name: '星芒', cat: '放射', tags: ['光', '发光', '星芒'], anim: true,
-    params: [{ k: 'points', label: '星芒数', min: 2, max: 12, step: 1, def: 4 },
-      { k: 'core', label: '核心', min: 0.01, max: 0.3, step: 0.005, def: 0.06 },
-      { k: 'arms', label: '臂长', min: 0.2, max: 1.4, step: 0.02, def: 0.9 },
-      { k: 'thin', label: '尖锐度', min: 1, max: 14, step: 0.2, def: 5 },
-      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
-      { k: 'soft', label: '柔光', min: 0, max: 0.6, step: 0.01, def: 0.18 }],
+    params: [{ k: 'points', label: '星芒数', min: 2, max: 24, step: 1, def: 12 },
+      { k: 'core', label: '核心大小', min: 0.01, max: 0.35, step: 0.005, def: 0.05 },
+      { k: 'arms', label: '臂长', min: 0.3, max: 1.6, step: 0.02, def: 1.25 },
+      { k: 'thin', label: '粗细', min: 0.02, max: 0.5, step: 0.005, def: 0.075 },
+      { k: 'fall', label: '拖尾衰减', min: 0.5, max: 5, step: 0.1, def: 1.7 },
+      { k: 'vary', label: '长短差异', min: 0, max: 1, step: 0.02, def: 0.55 },
+      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 }],
     fn: function (p, x, y, t, s) {
+      // 细长射线：角向用**高斯**（越靠射线中心越亮），沿半径用 smoothstep 拖出长柔尾
       var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2;
       var a = Math.atan2(dy, dx) + t * p.spin * TAU;
-      var arm = Math.pow(Math.abs(Math.cos(a * p.points / 2)), p.thin);
-      var R = p.arms * (0.22 + 0.78 * arm);
-      var v = clamp(1 - r / Math.max(0.001, R), 0, 1);
-      v = Math.max(v, clamp(1 - r / Math.max(0.001, p.core), 0, 1));
-      if (p.soft > 0) v = Math.max(v, p.soft * clamp(1 - r / 0.55, 0, 1));
-      return clamp(v, 0, 1);
+      var n = Math.max(2, Math.round(p.points)), seg = TAU / n;
+      var beta = ((a % seg) + seg) % seg - seg / 2;            // 到最近射线中心的角偏移
+      var w = seg * p.thin;
+      var ang = Math.exp(-(beta * beta) / (2 * w * w));
+      var idx = Math.round((((a % TAU) + TAU) % TAU) / seg) % n;
+      var len = p.arms * (1 - p.vary + p.vary * hash2(idx, 7, s));
+      var rad = Math.pow(sstep(0, 1, clamp(1 - r / len, 0, 1)), p.fall);
+      var core = Math.exp(-(r * r) / (2 * p.core * p.core));
+      return clamp(Math.max(ang * rad, core), 0, 1);
     }
   });
   TYPES.push({
@@ -895,9 +909,9 @@
       var beta = Math.abs(((a % seg) + seg) % seg - seg / 2);
       var R = p.size * 0.5;
       var rb = R * Math.cos(seg / 2) / Math.max(0.15, Math.cos(beta));
-      var v = clamp((rb - r) / p.soft + 0.5, 0, 1);
+      var v = sstep(-p.soft, p.soft, rb - r);
       if (p.fill < 1) {
-        var line = clamp(1 - Math.abs(r - rb) / (p.size * 0.07 + 0.004), 0, 1);
+        var line = sstep(p.size * 0.07 + 0.004, 0, Math.abs(r - rb));
         v = lerp(v, line, 1 - p.fill);
       }
       return clamp(Math.pow(clamp(v, 0, 1), 1 / (0.4 + p.round * 2)), 0, 1);
@@ -918,9 +932,9 @@
       var k = ((a / seg) % 1 + 1) % 1;
       var R = p.size * 0.5, RI = R * p.inner;
       var rb = k < 0.5 ? lerp(R, RI, k / 0.5) : lerp(RI, R, (k - 0.5) / 0.5);
-      var v = clamp((rb - r) / p.soft + 0.5, 0, 1);
+      var v = sstep(-p.soft, p.soft, rb - r);
       if (p.fill < 1) {
-        var line = clamp(1 - Math.abs(r - rb) / (p.size * 0.06 + 0.004), 0, 1);
+        var line = sstep(p.size * 0.06 + 0.004, 0, Math.abs(r - rb));
         v = lerp(v, line, 1 - p.fill);
       }
       return clamp(v, 0, 1);
@@ -937,11 +951,11 @@
       var a = t * p.spin * TAU, ca = Math.cos(a), sa = Math.sin(a);
       var dx = x - 0.5, dy = y - 0.5;
       var u = Math.abs(dx * ca + dy * sa), v = Math.abs(-dx * sa + dy * ca);
-      var h = clamp((p.width - v) / p.soft + 0.5, 0, 1) * clamp((p.len - u) / p.soft + 0.5, 0, 1);
-      var vv = clamp((p.width - u) / p.soft + 0.5, 0, 1) * clamp((p.len - v) / p.soft + 0.5, 0, 1);
+      var h = sstep(-p.soft, p.soft, p.width - v) * sstep(-p.soft, p.soft, p.len - u);
+      var vv = sstep(-p.soft, p.soft, p.width - u) * sstep(-p.soft, p.soft, p.len - v);
       var out = Math.max(h, vv);
       if (p.glow > 0) {
-        var g = clamp(1 - Math.min(u, v) / (p.width * 3.2), 0, 1);
+        var g = sstep(p.width * 3.2, 0, Math.min(u, v));
         out = Math.max(out, p.glow * g);
       }
       return clamp(out, 0, 1);
@@ -961,8 +975,8 @@
       var R = p.size * 0.5;
       var d1 = Math.hypot(u, v);
       var d2 = Math.hypot(u - R * p.offset * 2 * 0.5 - R * 0.2, v);
-      var outer = clamp((R - d1) / p.soft + 0.5, 0, 1);
-      var inner = clamp(((R * p.cut) - d2) / p.soft + 0.5, 0, 1);
+      var outer = sstep(-p.soft, p.soft, R - d1);
+      var inner = sstep(-p.soft, p.soft, R * p.cut - d2);
       return clamp(outer * (1 - inner), 0, 1);
     }
   });
@@ -982,7 +996,7 @@
         var d = Math.hypot(x - cx, y - cy);
         sum += (p.size * p.size) / (d * d + 0.0008);
       }
-      return clamp((sum - p.thr) / p.edge + 0.5, 0, 1);
+      return clamp(sstep(-p.edge, p.edge, sum - p.thr), 0, 1);
     }
   });
   TYPES.push({
@@ -1887,6 +1901,17 @@
     }
   }
   function rampSample(p) { return rampAtStops(sortStops(rampEdit.stops), p); }
+  function rampCss(stops) {
+    return 'linear-gradient(90deg,' + stops.map(function (st) { return st.c + ' ' + Math.round(st.p * 100) + '%'; }).join(',') + ')';
+  }
+  /** 参数面板里那条「看得见的色阶」——点一下就打开编辑器（以前只有一个下拉框，太容易被忽略） */
+  function rampBarEl(l) {
+    var stops = (l.color.stops && l.color.stops.length >= 2) ? sortStops(l.color.stops) : builtinStops(l.color.ramp || '火焰');
+    var bar = h('div', { class: 'ws-ramp-bar-mini', title: '点一下打开色标编辑器（加色标 / 拖动 / 改色）' });
+    bar.style.background = rampCss(stops);
+    bar.addEventListener('click', openRampEditor);
+    return bar;
+  }
   function rgb2hex(rgb) {
     return '#' + rgb.map(function (v) { return ('0' + Math.max(0, Math.min(255, v | 0)).toString(16)).slice(-2); }).join('');
   }
@@ -2337,9 +2362,16 @@
         l.color.stops = null;          // 换回内置就把自定义丢掉
         touch(true);
       });
-      var editBtn = h('button', { class: 'button secondary small', type: 'button', text: '编辑' });
+      var editBtn = h('button', { class: 'button secondary small', type: 'button', text: '编辑色标' });
       editBtn.addEventListener('click', openRampEditor);
-      cur.push(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '色阶' }), sel, editBtn]));
+      cur.push(h('div', { class: 'ws-ramp-row' }, [
+        h('div', { class: 'ws-ramp-label' }, [
+          h('span', { text: '色阶（点色条即可编辑）' }),
+          h('span', { class: 'ws-dim', text: (l.color.stops && l.color.stops.length) ? '自定义' : (l.color.ramp || '火焰') })
+        ]),
+        rampBarEl(l),
+        h('div', { class: 'ws-ramp-actions' }, [sel, editBtn])
+      ]));
     } else if (l.color.mode === 'solid') {
       var col = h('input', { type: 'color', value: l.color.solid, style: 'width:100%;height:34px;padding:2px' });
       col.addEventListener('input', function () { l.color.solid = col.value; touch(false); });
@@ -2891,6 +2923,17 @@
     applySeamless: applySeamless, seamlessPixels: seamlessPixels,
     /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
     sheetLayout: sheetLayout,
+    /** 自检用：沿一个圆周采样某个生成器，用来验「射线是细的」还是「胖花瓣」 */
+    rayProfile: function (typeId, samples, radius) {
+      var T = TYPE_BY_ID[typeId], P = {};
+      T.params.forEach(function (p) { P[p.k] = p.def; });
+      var out = [], rr = radius === undefined ? 0.35 : radius;
+      for (var i = 0; i < samples; i++) {
+        var a = i / samples * TAU;
+        out.push(T.fn(P, 0.5 + Math.cos(a) * rr * 0.5, 0.5 + Math.sin(a) * rr * 0.5, 0, 12345));
+      }
+      return out;
+    },
     /** 自检用：沿一条线采 pnoise，验「连续」和「周期」 */
     noiseProbe: function (n) {
       var out = [];
