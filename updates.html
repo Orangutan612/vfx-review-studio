@@ -21,7 +21,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791739811501">
+<link rel="stylesheet" href="./style.css?v=1791741057538">
 </head>
 <body>
 
@@ -34,6 +34,7 @@
     <a href="./index.html">作品评审</a>
     <a href="./workshop.html">贴图台</a>
     <a href="./updates.html" aria-current="page">更新说明</a>
+    <a href="./lab.html">贴图工具</a>
   </nav>
   <div class="topbar-right">
     <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
@@ -57,6 +58,7 @@
         <li><b>接上 GPU 渲染（WebGL2 片元着色器）</b><span>先把「光 + 几何」这一族 8 个类型（星芒 / 闪光 / 辉光 / 耀斑 / 眩光 / 花瓣 / 多边形 / 星形）搬进片元着色器。<strong>一个 512² 图层从 25–80ms 降到 4ms</strong> —— 拖滑杆不再卡顿，这才是"顺手"的关键。架构上只把「算灰度场」搬到 GPU，上色 / 后处理 / 图层 / 导出全部沿用原管线；<strong>没移植的类型自动回落 CPU</strong>，不会因为 GPU 挂了就整个不能用。</span></li>
         <li><b>验证方式</b><span>同一张图，GPU 与 CPU 两条路各算一遍逐像素比：差异 <strong>0.4%–2%</strong>（星芒 0.021、闪光 0.006、辉光 0.012、花瓣 0.018）—— 说明着色器确实复现了原来的画面，不是"另画了一个"。</span></li>
         <li><b>修：部署了新版本却看不到</b><span>GitHub Pages 对静态资源带缓存，HTML 里的 script/link 没有版本号，浏览器就一直吃旧文件。现在<strong>部署时自动给所有资源加上当次的版本号</strong>，每次部署必定生效。</span></li>
+        <li><b>按"联络表"逐个修手感和剪贴画感</b><span>把 54 个生成器全部铺成一张联络表逐个看，抓出并修掉：<strong>边缘被切平</strong>（14 个"画面里放元素"的类型现在会在贴边前淡出，融球/散景/神光不再糊在边上）、散景光斑跑到框外的放置 bug、多边形/星形/十字/月牙的<strong>纯白硬边剪贴画感</strong>（加了内部明暗，有体积了）、融球和散景默认太大糊成一坨。</span></li>
         <li><b>后续</b><span>剩下 46 个类型按同一套模板继续搬（每个类型一段 GLSL 主体 + 一句参数映射）。</span></li>
       </ul>
     </div>
