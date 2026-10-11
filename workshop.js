@@ -92,6 +92,32 @@
     薄荷: ['#04100c', '#0d3b2c', '#1e7a52', '#4cc98a', '#b8f2c8', '#f4fff2'],
     自定义: ['#000000', '#ffffff']
   };
+  /** 带位置的自定义色标：stops = [{p:0..1, c:'#rrggbb'}]，按 p 排好序 */
+  function rampAtStops(stops, t) {
+    if (!stops || !stops.length) return [0, 0, 0];
+    if (stops.length === 1) return hex2rgb(stops[0].c);
+    var x = clamp(t, 0, 1);
+    if (x <= stops[0].p) return hex2rgb(stops[0].c);
+    for (var i = 0; i < stops.length - 1; i++) {
+      var a = stops[i], b = stops[i + 1];
+      if (x <= b.p) {
+        var f = (x - a.p) / Math.max(1e-6, b.p - a.p);
+        var ca = hex2rgb(a.c), cb = hex2rgb(b.c);
+        return [lerp(ca[0], cb[0], f) | 0, lerp(ca[1], cb[1], f) | 0, lerp(ca[2], cb[2], f) | 0];
+      }
+    }
+    return hex2rgb(stops[stops.length - 1].c);
+  }
+  function sortStops(stops) { return stops.slice().sort(function (a, b) { return a.p - b.p; }); }
+  /** 把任意色阶（内置名字 或 自定义 stops）编成 256 项 LUT */
+  function rampLUT(key, stops) {
+    var LUT = new Uint8Array(256 * 3);
+    for (var q = 0; q < 256; q++) {
+      var cc = stops ? rampAtStops(stops, q / 255) : rampAt(RAMPS[key] || RAMPS['火焰'], q / 255);
+      LUT[q * 3] = cc[0]; LUT[q * 3 + 1] = cc[1]; LUT[q * 3 + 2] = cc[2];
+    }
+    return LUT;
+  }
   function rampAt(stops, t) {
     var n = stops.length - 1;
     var x = clamp(t, 0, 1) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i;
@@ -488,6 +514,598 @@
     }
   });
 
+  /* ── 第二批生成器：补齐「光」这一族（这一族才是让人想用的东西）── */
+  TYPES.push({
+    id: 'glow', name: '辉光', cat: '放射', tags: ['光', '发光', '柔和'], anim: true,
+    params: [{ k: 'core', label: '核心', min: 0.02, max: 0.6, step: 0.01, def: 0.16 },
+      { k: 'fall', label: '衰减', min: 0.4, max: 8, step: 0.1, def: 2.4 },
+      { k: 'ring', label: '光环', min: 0, max: 1, step: 0.02, def: 0.3 },
+      { k: 'noise', label: '噪声扰动', min: 0, max: 1, step: 0.02, def: 0.25 },
+      { k: 'scale', label: '噪声密度', min: 1, max: 12, step: 1, def: 5 }],
+    fn: function (p, x, y, t, s) {
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2;
+      var n = p.noise > 0 ? fbmN(x * p.scale, y * p.scale, p.scale, 4, s, 0.5) : 0.5;
+      var rr = r / (1 + p.noise * (n - 0.5) * 1.1);
+      var v = Math.pow(Math.max(0, 1 - rr), p.fall);
+      v = Math.max(v, Math.max(0, 1 - rr / Math.max(0.001, p.core)));
+      if (p.ring > 0) { var d = Math.abs(rr - 0.6); v = Math.max(v, p.ring * Math.max(0, 1 - d / 0.14)); }
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'flash', name: '闪光', cat: '放射', tags: ['光', '闪光', '打击'], anim: true,
+    params: [{ k: 'core', label: '核心', min: 0.02, max: 0.5, step: 0.01, def: 0.14 },
+      { k: 'spikes', label: '尖刺数', min: 0, max: 12, step: 1, def: 6 },
+      { k: 'len', label: '尖刺长度', min: 0.1, max: 1.2, step: 0.02, def: 0.5 },
+      { k: 'soft', label: '柔化', min: 0.15, max: 2, step: 0.05, def: 0.6 },
+      { k: 'pulse', label: '脉动', min: 0, max: 1, step: 0.02, def: 0.3 }],
+    fn: function (p, x, y, t, s) {
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2, a = Math.atan2(dy, dx);
+      var pul = 1 + p.pulse * 0.45 * Math.sin(t * TAU * 2);
+      var k = p.spikes > 0 ? Math.pow(Math.abs(Math.cos(a * p.spikes / 2)), 2.4) : 0;
+      var R = (p.core + p.len * k) * pul;
+      return clamp(Math.pow(Math.max(0, 1 - r / Math.max(0.001, R)), p.soft), 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'flare', name: '耀斑', cat: '放射', tags: ['光', '发光', '镜头'], anim: true,
+    params: [{ k: 'core', label: '核心', min: 0.02, max: 0.4, step: 0.01, def: 0.1 },
+      { k: 'streak', label: '横向光带', min: 0, max: 1.5, step: 0.05, def: 0.85 },
+      { k: 'halo', label: '光环', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'ghost', label: '鬼影', min: 0, max: 1, step: 0.02, def: 0.35 },
+      { k: 'tilt', label: '倾角', min: -45, max: 45, step: 1, def: 0 },
+      { k: 'flick', label: '闪动', min: 0, max: 1, step: 0.02, def: 0.25 }],
+    fn: function (p, x, y, t, s) {
+      var a = p.tilt * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      var dx = x - 0.5, dy = y - 0.5;
+      var u = dx * ca + dy * sa, v = -dx * sa + dy * ca;
+      var r = Math.hypot(dx, dy) * 2;
+      var fl = 1 + p.flick * 0.5 * Math.sin(t * TAU * 3 + (s % 7));
+      var out = Math.max(0, 1 - r / Math.max(0.001, p.core * fl));
+      if (p.streak > 0) {
+        var band = Math.pow(Math.max(0, 1 - Math.abs(v) * 7), 2.5) * Math.pow(Math.max(0, 1 - Math.abs(u) / (0.5 * p.streak + 0.04)), 1.4);
+        out = Math.max(out, band);
+      }
+      if (p.halo > 0) { var h = Math.abs(r - 0.52); out = Math.max(out, p.halo * Math.max(0, 1 - h / 0.17)); }
+      if (p.ghost > 0) { var g = Math.abs(r - 0.86); out = Math.max(out, p.ghost * 0.75 * Math.max(0, 1 - g / 0.1)); }
+      return clamp(out, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'starflare', name: '星芒', cat: '放射', tags: ['光', '发光', '星芒'], anim: true,
+    params: [{ k: 'points', label: '星芒数', min: 2, max: 12, step: 1, def: 4 },
+      { k: 'core', label: '核心', min: 0.01, max: 0.3, step: 0.005, def: 0.06 },
+      { k: 'arms', label: '臂长', min: 0.2, max: 1.4, step: 0.02, def: 0.9 },
+      { k: 'thin', label: '尖锐度', min: 1, max: 14, step: 0.2, def: 5 },
+      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
+      { k: 'soft', label: '柔光', min: 0, max: 0.6, step: 0.01, def: 0.18 }],
+    fn: function (p, x, y, t, s) {
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy) * 2;
+      var a = Math.atan2(dy, dx) + t * p.spin * TAU;
+      var arm = Math.pow(Math.abs(Math.cos(a * p.points / 2)), p.thin);
+      var R = p.arms * (0.22 + 0.78 * arm);
+      var v = clamp(1 - r / Math.max(0.001, R), 0, 1);
+      v = Math.max(v, clamp(1 - r / Math.max(0.001, p.core), 0, 1));
+      if (p.soft > 0) v = Math.max(v, p.soft * clamp(1 - r / 0.55, 0, 1));
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'glare', name: '眩光', cat: '放射', tags: ['光', '发光', '横向'], anim: true,
+    params: [{ k: 'len', label: '长度', min: 0.2, max: 2, step: 0.05, def: 1.1 },
+      { k: 'height', label: '厚度', min: 0.01, max: 0.4, step: 0.005, def: 0.07 },
+      { k: 'core', label: '核心', min: 0.02, max: 0.5, step: 0.01, def: 0.15 },
+      { k: 'rays', label: '斜向光', min: 0, max: 1, step: 0.02, def: 0.3 },
+      { k: 'angle', label: '角度', min: 0, max: 180, step: 1, def: 0 },
+      { k: 'flow', label: '流动', min: 0, max: 1, step: 0.02, def: 0.2 }],
+    fn: function (p, x, y, t, s) {
+      var a = p.angle * Math.PI / 180;
+      var dx = x - 0.5, dy = y - 0.5;
+      var u = dx * Math.cos(a) + dy * Math.sin(a), v = -dx * Math.sin(a) + dy * Math.cos(a);
+      if (p.flow > 0) u += Math.sin(v * 9 + t * TAU) * p.flow * 0.03;
+      var band = Math.pow(Math.max(0, 1 - Math.abs(v) / p.height), 2) * Math.pow(Math.max(0, 1 - Math.abs(u) / (p.len * 0.5)), 1.2);
+      var core = Math.pow(Math.max(0, 1 - Math.hypot(dx, dy) * 2 / Math.max(0.001, p.core)), 1.5);
+      var diag = 0;
+      if (p.rays > 0) {
+        var a2 = a + 0.6;
+        var u2 = dx * Math.cos(a2) + dy * Math.sin(a2), v2 = -dx * Math.sin(a2) + dy * Math.cos(a2);
+        diag = p.rays * Math.pow(Math.max(0, 1 - Math.abs(v2) / 0.05), 2) * Math.pow(Math.max(0, 1 - Math.abs(u2) / 0.6), 1.5);
+      }
+      return clamp(Math.max(core, Math.max(band, diag)), 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'godray', name: '神光', cat: '放射', tags: ['光', '发光', '体积光'], anim: true,
+    params: [{ k: 'count', label: '光柱数', min: 3, max: 40, step: 1, def: 12 },
+      { k: 'spread', label: '发散', min: 0.2, max: 3, step: 0.05, def: 1.1 },
+      { k: 'len', label: '长度', min: 0.3, max: 1.6, step: 0.02, def: 1 },
+      { k: 'dust', label: '尘埃', min: 0, max: 1, step: 0.02, def: 0.35 },
+      { k: 'scale', label: '噪声密度', min: 1, max: 12, step: 1, def: 4 },
+      { k: 'speed', label: '流动', min: 0, max: 1, step: 0.02, def: 0.15 }],
+    fn: function (p, x, y, t, s) {
+      var ox = 0.5, oy = -0.35;                       // 光源在画面外上方
+      var vx = x - ox, vy = y - oy;
+      var a = Math.atan2(vx, -vy);
+      var idx = (a * p.spread + 0.5) * p.count;
+      var cell = Math.floor(idx), f = Math.abs(idx - cell - 0.5) * 2;
+      var rnd = hash2(cell, 11, s);
+      var w = 0.25 + rnd * 0.5;
+      var shaft = Math.pow(Math.max(0, 1 - f / w), 2);
+      shaft *= Math.max(0, 1 - Math.hypot(vx, vy) / p.len);
+      var n = fbmN(x * p.scale + t * p.speed, y * p.scale * 2.2, p.scale, 4, s, 0.5);
+      shaft *= (1 - p.dust + p.dust * (0.5 + n));
+      return clamp(shaft * 1.35, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'bokeh', name: '散景', cat: '放射', tags: ['光', '发光', '摄影'], anim: true,
+    params: [{ k: 'count', label: '光斑数', min: 4, max: 80, step: 1, def: 24 },
+      { k: 'size', label: '大小', min: 0.02, max: 0.5, step: 0.01, def: 0.15 },
+      { k: 'vary', label: '大小差异', min: 0, max: 1, step: 0.02, def: 0.7 },
+      { k: 'ring', label: '金边', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'spin', label: '旋转', min: 0, max: 1, step: 0.02, def: 0.12 },
+      { k: 'soft', label: '柔化', min: 0.01, max: 0.4, step: 0.01, def: 0.07 }],
+    fn: function (p, x, y, t, s) {
+      var v = 0;
+      for (var i = 0; i < p.count; i++) {
+        var a = hash2(i, 1, s) * TAU + t * p.spin * TAU;
+        var rad = Math.sqrt(hash2(i, 2, s)) * 0.72;
+        var cx = 0.5 + Math.cos(a) * rad, cy = 0.5 + Math.sin(a) * rad;
+        var r = p.size * (0.35 + hash2(i, 3, s) * p.vary * 1.65);
+        var d = Math.hypot(x - cx, y - cy);
+        var c = Math.max(0, 1 - Math.max(0, d - r) / p.soft);
+        if (p.ring > 0) c = Math.max(c, p.ring * Math.max(0, 1 - Math.abs(d - r * 0.9) / (r * 0.18 + 0.005)));
+        if (c > v) v = c;
+      }
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'spark', name: '火花', cat: '图形', tags: ['光', '粒子', '打击'], anim: true,
+    params: [{ k: 'count', label: '数量', min: 4, max: 60, step: 1, def: 20 },
+      { k: 'size', label: '大小', min: 0.004, max: 0.08, step: 0.002, def: 0.016 },
+      { k: 'tail', label: '拖尾', min: 0, max: 1, step: 0.02, def: 0.45 },
+      { k: 'angle', label: '喷射角', min: 0, max: 360, step: 5, def: 0 },
+      { k: 'spread', label: '散布', min: 0, max: 1, step: 0.02, def: 0.7 },
+      { k: 'flow', label: '流动', min: 0, max: 1, step: 0.02, def: 0.3 }],
+    fn: function (p, x, y, t, s) {
+      var v = 0, aa = p.angle * Math.PI / 180;
+      for (var i = 0; i < p.count; i++) {
+        var h1 = hash2(i, 1, s), h2 = hash2(i, 2, s), h3 = hash2(i, 3, s);
+        var ang = aa + (h1 - 0.5) * p.spread * TAU;
+        var prog = (h2 + t * p.flow) % 1;
+        var dist = 0.06 + h3 * 0.28 + prog * 0.4;
+        var cx = 0.5 + Math.cos(ang) * dist, cy = 0.5 + Math.sin(ang) * dist;
+        var sz = p.size * (0.4 + h3);
+        var dx = x - cx, dy = y - cy;
+        var c = Math.max(0, 1 - Math.hypot(dx, dy) / sz);
+        if (p.tail > 0) {
+          var u = dx * Math.cos(ang) + dy * Math.sin(ang), w = -dx * Math.sin(ang) + dy * Math.cos(ang);
+          var tail = Math.max(0, 1 - Math.abs(w) / (sz * 0.8)) * Math.max(0, 1 - (-u) / (p.tail * 0.22 + 0.001));
+          c = Math.max(c, tail * 0.85);
+        }
+        if (c > v) v = c;
+      }
+      return clamp(v * 1.15, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'shimmer', name: '微光', cat: '放射', tags: ['光', '闪烁', '粒子'], tile: true, anim: true,
+    params: [{ k: 'cells', label: '密度', min: 8, max: 200, step: 4, def: 64 },
+      { k: 'size', label: '光点', min: 0.02, max: 0.6, step: 0.02, def: 0.22 },
+      { k: 'speed', label: '闪烁速度', min: 0, max: 2, step: 0.05, def: 0.6 },
+      { k: 'sparse', label: '稀疏度', min: 0, max: 1, step: 0.02, def: 0.55 }],
+    fn: function (p, x, y, t, s) {
+      var q = Math.max(2, Math.round(p.cells));
+      var ix = Math.floor(x * q), iy = Math.floor(y * q);
+      var gx = ((ix % q) + q) % q, gy = ((iy % q) + q) % q;
+      var h = hash2(gx, gy, s);
+      if (h < p.sparse) return 0;
+      var px = gx + hash2(gx, gy, s + 13), py = gy + hash2(gx, gy, s + 29);
+      var d = Math.hypot(x * q - px, y * q - py);
+      var tw = 0.5 + 0.5 * Math.sin(t * TAU * p.speed + h * TAU * 3);
+      return clamp((1 - d / p.size) * tw, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'fire', name: '火焰', cat: '自然现象', tags: ['火', '燃烧', '爆炸'], anim: true,
+    params: [{ k: 'scale', label: '密度', min: 1, max: 12, step: 1, def: 4 },
+      { k: 'speed', label: '上升速度', min: 0, max: 2, step: 0.05, def: 0.7 },
+      { k: 'hot', label: '炽热', min: 0.3, max: 3, step: 0.05, def: 1.35 },
+      { k: 'tall', label: '火舌高度', min: 0.3, max: 2, step: 0.05, def: 1 },
+      { k: 'lick', label: '火舌扰动', min: 0, max: 1, step: 0.02, def: 0.5 }],
+    fn: function (p, x, y, t, s) {
+      var yy = 1 - y;                                  // 从下往上烧
+      var n = turbN(x * p.scale, yy * p.scale * 1.8 - t * p.speed * p.scale * 2, p.scale, 5, s);
+      var up = Math.pow(clamp(yy / Math.max(0.05, p.tall), 0, 1), 0.9);
+      var v = (1 - n * 1.15) * up * p.hot;
+      if (p.lick > 0) v += p.lick * 0.35 * (fbmN(x * p.scale * 2, yy * p.scale * 3 - t * p.speed * 3, p.scale * 2, 3, s, 0.5) - 0.5) * up;
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'caustics', name: '焦散', cat: '自然现象', tags: ['水', '光', '折射'], tile: true, anim: true,
+    params: [{ k: 'scale', label: '密度', min: 1, max: 10, step: 1, def: 3 },
+      { k: 'speed', label: '流动', min: 0, max: 1, step: 0.02, def: 0.2 },
+      { k: 'sharp', label: '锐度', min: 1, max: 6, step: 0.1, def: 3 },
+      { k: 'cell', label: '细胞感', min: 0, max: 1, step: 0.02, def: 0.5 }],
+    fn: function (p, x, y, t, s) {
+      var n1 = fbmN(x * p.scale + t * p.speed, y * p.scale, p.scale, 4, s, 0.55);
+      var n2 = fbmN(x * p.scale * 1.6 - t * p.speed, y * p.scale * 1.6 + 3, Math.max(1, p.scale * 2), 4, s + 91, 0.55);
+      var v = 0.5 + 0.5 * Math.sin((n1 * 0.6 + n2 * 0.4) * Math.PI * 5);
+      v = Math.pow(v, p.sharp);
+      if (p.cell > 0) {
+        var q = Math.max(1, Math.round(p.scale * 1.3));
+        var w = worley(x * p.scale * 1.3, y * p.scale * 1.3, q, s + 7);
+        v = lerp(v, Math.pow(clamp((w.f2 - w.f1) / 0.35, 0, 1), p.sharp), p.cell * 0.5);
+      }
+      return clamp(v * 1.25, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'aurora', name: '极光', cat: '自然现象', tags: ['光', '天空', '流动'], tile: true, anim: true,
+    params: [{ k: 'bands', label: '光带数', min: 1, max: 10, step: 1, def: 4 },
+      { k: 'warp', label: '摆动', min: 0, max: 3, step: 0.05, def: 1.2 },
+      { k: 'thick', label: '厚度', min: 0.02, max: 0.5, step: 0.01, def: 0.16 },
+      { k: 'scale', label: '噪声密度', min: 1, max: 10, step: 1, def: 3 },
+      { k: 'speed', label: '流动', min: 0, max: 1, step: 0.02, def: 0.25 },
+      { k: 'soft', label: '柔化', min: 0.02, max: 0.6, step: 0.01, def: 0.2 }],
+    fn: function (p, x, y, t, s) {
+      var n = fbmN(x * p.scale + t * p.speed, y * p.scale * 0.7, p.scale, 4, s, 0.5);
+      var yy = y * 0.75 + 0.15, v = 0;
+      for (var i = 0; i < p.bands; i++) {
+        var c = (i + 0.5) / p.bands + (n - 0.5) * p.warp * 0.22;
+        v = Math.max(v, Math.max(0, 1 - Math.abs(yy - c) / p.thick));
+      }
+      v *= clamp(1 - Math.abs(y - 0.5) * 1.3, 0, 1);
+      return clamp(Math.pow(clamp(v, 0, 1), 1 / (0.5 + p.soft * 3)), 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'energy', name: '能量场', cat: '能量', tags: ['能量', '流动', '魔法'], tile: true, anim: true,
+    params: [{ k: 'scale', label: '密度', min: 1, max: 12, step: 1, def: 4 },
+      { k: 'speed', label: '流动', min: 0, max: 1, step: 0.02, def: 0.35 },
+      { k: 'sharp', label: '锐度', min: 1, max: 6, step: 0.1, def: 2.6 },
+      { k: 'pulse', label: '脉动', min: 0, max: 1, step: 0.02, def: 0.3 },
+      { k: 'veins', label: '筋络', min: 0, max: 1, step: 0.02, def: 0.6 }],
+    fn: function (p, x, y, t, s) {
+      var n1 = fbmN(x * p.scale + t * p.speed * 2, y * p.scale - t * p.speed, p.scale, 4, s, 0.55);
+      var tb = turbN(x * p.scale * 1.4, y * p.scale * 1.4 + t * p.speed, Math.max(1, p.scale * 2), 4, s + 31);
+      var v = Math.pow(clamp(lerp(n1, 1 - tb, p.veins), 0, 1), 1 / p.sharp);
+      v *= 1 + p.pulse * 0.5 * Math.sin(t * TAU * 2);
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'laser', name: '激光束', cat: '能量', tags: ['光', '激光', '科技'], anim: true,
+    params: [{ k: 'width', label: '束宽', min: 0.01, max: 0.4, step: 0.005, def: 0.05 },
+      { k: 'glow', label: '辉光', min: 0, max: 1, step: 0.02, def: 0.6 },
+      { k: 'angle', label: '角度', min: 0, max: 180, step: 1, def: 0 },
+      { k: 'wobble', label: '抖动', min: 0, max: 1, step: 0.02, def: 0.25 },
+      { k: 'speed', label: '流动', min: 0, max: 1, step: 0.02, def: 0.4 },
+      { k: 'dash', label: '断续', min: 0, max: 1, step: 0.02, def: 0.35 }],
+    fn: function (p, x, y, t, s) {
+      var a = p.angle * Math.PI / 180;
+      var dx = x - 0.5, dy = y - 0.5;
+      var v = -dx * Math.sin(a) + dy * Math.cos(a);
+      var u = dx * Math.cos(a) + dy * Math.sin(a);
+      if (p.wobble > 0) v += (fbmN(u * 4 + t * p.speed * 2, 0.5, 8, 3, s, 0.5) - 0.5) * p.wobble * 0.08;
+      var core = Math.max(0, 1 - Math.abs(v) / p.width);
+      var gl = p.glow * Math.max(0, 1 - Math.abs(v) / (p.width * 4));
+      var out = Math.max(core, gl);
+      if (p.dash > 0) out *= 1 - p.dash * (1 - (0.5 + 0.5 * Math.sin(u * 40 + t * p.speed * 10)));
+      return clamp(out, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'bricks', name: '砖墙', cat: '网格', tags: ['砖', '墙面', '建筑'], tile: true,
+    params: [{ k: 'rows', label: '行数', min: 2, max: 24, step: 1, def: 8 },
+      { k: 'ratio', label: '砖长宽比', min: 0.5, max: 4, step: 0.05, def: 2 },
+      { k: 'mortar', label: '砖缝', min: 0.01, max: 0.3, step: 0.005, def: 0.05 },
+      { k: 'vary', label: '深浅差异', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.1, step: 0.005, def: 0.02 }],
+    fn: function (p, x, y, t, s) {
+      var rows = Math.max(2, Math.round(p.rows)), cols = Math.max(1, Math.round(rows / p.ratio));
+      var gy = y * rows, row = Math.floor(gy), fy = gy - row;
+      var gx = x * cols + (row % 2) * 0.5, col = Math.floor(gx), fx = gx - col;
+      var ux = Math.min(fx, 1 - fx) / cols, uy = Math.min(fy, 1 - fy) / rows;
+      var e = Math.min(ux, uy), wv = p.mortar / rows;
+      var v = clamp((e - wv) / (p.soft / rows) + 0.5, 0, 1);
+      var shade = hash2(((col % cols) + cols) % cols, ((row % rows) + rows) % rows, s);
+      return clamp(v * lerp(1, 0.55 + shade * 0.45, p.vary), 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'weave', name: '编织', cat: '网格', tags: ['编织', '布料', '纹理'], tile: true,
+    params: [{ k: 'cells', label: '密度', min: 2, max: 40, step: 1, def: 12 },
+      { k: 'round', label: '圆润', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'contrast', label: '对比', min: 0.2, max: 3, step: 0.05, def: 1.3 }],
+    fn: function (p, x, y, t, s) {
+      var q = Math.max(2, Math.round(p.cells)), u = x * q, v = y * q;
+      var fu = u - Math.floor(u), fv = v - Math.floor(v);
+      var horiz = ((Math.floor(u) + Math.floor(v)) % 2 + 2) % 2 === 0;
+      var d = horiz ? Math.abs(fv - 0.5) : Math.abs(fu - 0.5);
+      var w = 0.5 * (1 - p.round * 0.55);
+      var val = clamp((w - d) / 0.25 + 0.5, 0, 1);
+      var shade = horiz ? 1 : 0.62;
+      return clamp((val * shade - 0.5) * p.contrast + 0.5, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'mosaic', name: '马赛克', cat: '数字', tags: ['马赛克', '像素', '拼贴'], tile: true,
+    params: [{ k: 'cells', label: '格子数', min: 3, max: 48, step: 1, def: 14 },
+      { k: 'gap', label: '间隙', min: 0, max: 0.3, step: 0.005, def: 0.06 },
+      { k: 'vary', label: '明暗差异', min: 0, max: 1, step: 0.02, def: 0.75 },
+      { k: 'rotate', label: '随机旋转', min: 0, max: 1, step: 0.02, def: 0.25 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.08, step: 0.005, def: 0.015 }],
+    fn: function (p, x, y, t, s) {
+      var q = Math.max(2, Math.round(p.cells));
+      var ix = Math.floor(x * q), iy = Math.floor(y * q);
+      var gx = ((ix % q) + q) % q, gy = ((iy % q) + q) % q;
+      var a = hash2(gx, gy, s), b = hash2(gx, gy, s + 17);
+      var fx = x * q - ix - 0.5, fy = y * q - iy - 0.5;
+      if (p.rotate > 0) {
+        var ang = (b - 0.5) * p.rotate * 1.2, ca = Math.cos(ang), sa = Math.sin(ang);
+        var nx = fx * ca - fy * sa; fy = fx * sa + fy * ca; fx = nx;
+      }
+      var half = 0.5 - p.gap * 0.5;
+      var v = clamp((half - Math.max(Math.abs(fx), Math.abs(fy))) / p.soft + 0.5, 0, 1);
+      return clamp(v * lerp(1, 0.18 + a * 0.82, p.vary), 0, 1);
+    }
+  });
+
+  /* ── 第三批：几何形状 / 质感 / 数字风格（对齐参考里值得拿的那些）── */
+  TYPES.push({
+    id: 'polygon', name: '多边形', cat: '图形', tags: ['几何', '图形', 'UI'], anim: true,
+    params: [{ k: 'sides', label: '边数', min: 3, max: 12, step: 1, def: 6 },
+      { k: 'size', label: '大小', min: 0.1, max: 1.4, step: 0.02, def: 0.85 },
+      { k: 'round', label: '圆角', min: 0, max: 1, step: 0.02, def: 0.15 },
+      { k: 'fill', label: '填充', min: 0, max: 1, step: 0.02, def: 1 },
+      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.3, step: 0.005, def: 0.03 }],
+    fn: function (p, x, y, t, s) {
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy);
+      var a = Math.atan2(dy, dx) - t * p.spin * TAU;
+      var n = Math.max(3, Math.round(p.sides)), seg = TAU / n;
+      var beta = Math.abs(((a % seg) + seg) % seg - seg / 2);
+      var R = p.size * 0.5;
+      var rb = R * Math.cos(seg / 2) / Math.max(0.15, Math.cos(beta));
+      var v = clamp((rb - r) / p.soft + 0.5, 0, 1);
+      if (p.fill < 1) {
+        var line = clamp(1 - Math.abs(r - rb) / (p.size * 0.07 + 0.004), 0, 1);
+        v = lerp(v, line, 1 - p.fill);
+      }
+      return clamp(Math.pow(clamp(v, 0, 1), 1 / (0.4 + p.round * 2)), 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'star', name: '星形', cat: '图形', tags: ['星', '几何', '图形'], anim: true,
+    params: [{ k: 'points', label: '角数', min: 3, max: 16, step: 1, def: 5 },
+      { k: 'size', label: '大小', min: 0.1, max: 1.4, step: 0.02, def: 0.9 },
+      { k: 'inner', label: '内径', min: 0.1, max: 0.9, step: 0.02, def: 0.45 },
+      { k: 'fill', label: '填充', min: 0, max: 1, step: 0.02, def: 1 },
+      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.3, step: 0.005, def: 0.03 }],
+    fn: function (p, x, y, t, s) {
+      var dx = x - 0.5, dy = y - 0.5, r = Math.hypot(dx, dy);
+      var a = Math.atan2(dy, dx) + t * p.spin * TAU;
+      var n = Math.max(3, Math.round(p.points)), seg = TAU / n;
+      var k = ((a / seg) % 1 + 1) % 1;
+      var R = p.size * 0.5, RI = R * p.inner;
+      var rb = k < 0.5 ? lerp(R, RI, k / 0.5) : lerp(RI, R, (k - 0.5) / 0.5);
+      var v = clamp((rb - r) / p.soft + 0.5, 0, 1);
+      if (p.fill < 1) {
+        var line = clamp(1 - Math.abs(r - rb) / (p.size * 0.06 + 0.004), 0, 1);
+        v = lerp(v, line, 1 - p.fill);
+      }
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'cross', name: '十字', cat: '图形', tags: ['十字', '准星', 'UI'], tile: true, anim: true,
+    params: [{ k: 'width', label: '粗细', min: 0.01, max: 0.25, step: 0.005, def: 0.055 },
+      { k: 'len', label: '长度', min: 0.1, max: 0.7, step: 0.01, def: 0.45 },
+      { k: 'glow', label: '辉光', min: 0, max: 1, step: 0.02, def: 0.45 },
+      { k: 'spin', label: '旋转', min: -1, max: 1, step: 0.02, def: 0 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.2, step: 0.005, def: 0.02 }],
+    fn: function (p, x, y, t, s) {
+      var a = t * p.spin * TAU, ca = Math.cos(a), sa = Math.sin(a);
+      var dx = x - 0.5, dy = y - 0.5;
+      var u = Math.abs(dx * ca + dy * sa), v = Math.abs(-dx * sa + dy * ca);
+      var h = clamp((p.width - v) / p.soft + 0.5, 0, 1) * clamp((p.len - u) / p.soft + 0.5, 0, 1);
+      var vv = clamp((p.width - u) / p.soft + 0.5, 0, 1) * clamp((p.len - v) / p.soft + 0.5, 0, 1);
+      var out = Math.max(h, vv);
+      if (p.glow > 0) {
+        var g = clamp(1 - Math.min(u, v) / (p.width * 3.2), 0, 1);
+        out = Math.max(out, p.glow * g);
+      }
+      return clamp(out, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'crescent', name: '月牙', cat: '放射', tags: ['月牙', '形状', '魔法'], anim: true,
+    params: [{ k: 'size', label: '大小', min: 0.15, max: 1.2, step: 0.02, def: 0.7 },
+      { k: 'cut', label: '缺口感', min: 0.1, max: 1.4, step: 0.02, def: 0.62 },
+      { k: 'offset', label: '偏移', min: 0.05, max: 0.7, step: 0.01, def: 0.28 },
+      { k: 'angle', label: '角度', min: 0, max: 360, step: 5, def: 0 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.25, step: 0.005, def: 0.02 }],
+    fn: function (p, x, y, t, s) {
+      var a = p.angle * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      var dx = x - 0.5, dy = y - 0.5;
+      var u = dx * ca + dy * sa, v = -dx * sa + dy * ca;
+      var R = p.size * 0.5;
+      var d1 = Math.hypot(u, v);
+      var d2 = Math.hypot(u - R * p.offset * 2 * 0.5 - R * 0.2, v);
+      var outer = clamp((R - d1) / p.soft + 0.5, 0, 1);
+      var inner = clamp(((R * p.cut) - d2) / p.soft + 0.5, 0, 1);
+      return clamp(outer * (1 - inner), 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'metaballs', name: '融球', cat: '放射', tags: ['有机', '融球', '魔法'], anim: true,
+    params: [{ k: 'count', label: '球数', min: 2, max: 24, step: 1, def: 8 },
+      { k: 'size', label: '大小', min: 0.05, max: 0.6, step: 0.01, def: 0.2 },
+      { k: 'thr', label: '阈值', min: 0.2, max: 3, step: 0.05, def: 1 },
+      { k: 'speed', label: '游动', min: 0, max: 1, step: 0.02, def: 0.25 },
+      { k: 'edge', label: '边缘柔化', min: 0.01, max: 0.5, step: 0.01, def: 0.1 }],
+    fn: function (p, x, y, t, s) {
+      var sum = 0;
+      for (var i = 0; i < p.count; i++) {
+        var ph = hash2(i, 9, s) * TAU;
+        var cx = 0.5 + Math.cos(ph + t * p.speed * TAU) * 0.28 * (0.4 + hash2(i, 1, s));
+        var cy = 0.5 + Math.sin(ph * 1.7 + t * p.speed * TAU * 1.3) * 0.28 * (0.4 + hash2(i, 2, s));
+        var d = Math.hypot(x - cx, y - cy);
+        sum += (p.size * p.size) / (d * d + 0.0008);
+      }
+      return clamp((sum - p.thr) / p.edge + 0.5, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'crystal', name: '水晶', cat: '噪波', tags: ['晶体', '棱面', '材质'], tile: true,
+    params: [{ k: 'cells', label: '晶格', min: 2, max: 24, step: 1, def: 8 },
+      { k: 'facet', label: '棱面亮度', min: 0, max: 1, step: 0.02, def: 0.75 },
+      { k: 'edge', label: '棱线宽度', min: 0.01, max: 0.4, step: 0.005, def: 0.1 },
+      { k: 'shade', label: '明暗差异', min: 0, max: 1, step: 0.02, def: 0.6 }],
+    fn: function (p, x, y, t, s) {
+      var w = worley(x * p.cells, y * p.cells, p.cells, s);
+      var shade = hash2(w.cix, w.ciy, s + 313);
+      var body = lerp(1, 0.25 + shade * 0.75, p.shade);
+      var edge = 1 - clamp((w.f2 - w.f1) / p.edge, 0, 1);     // 1 = 正在棱线上
+      var v = lerp(body, 1, edge * (0.4 + p.facet * 0.6));
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'terrain', name: '地形浮雕', cat: '噪波', tags: ['地形', '山脊', '高度图'], tile: true,
+    params: [{ k: 'scale', label: '密度', min: 1, max: 10, step: 1, def: 3 },
+      { k: 'oct', label: '层数', min: 2, max: 8, step: 1, def: 5 },
+      { k: 'ridge', label: '山脊', min: 0, max: 1, step: 0.02, def: 0.8 },
+      { k: 'bands', label: '等高线', min: 0, max: 20, step: 1, def: 0 },
+      { k: 'sharp', label: '锐度', min: 1, max: 5, step: 0.1, def: 1.8 }],
+    fn: function (p, x, y, t, s) {
+      var n = fbmN(x * p.scale, y * p.scale, p.scale, p.oct, s, 0.5);
+      var r = 1 - Math.abs(n * 2 - 1);                      // 脊状
+      var v = Math.pow(clamp(lerp(n, r, p.ridge), 0, 1), p.sharp);
+      if (p.bands > 0) {
+        var b = (v * p.bands) % 1;
+        v = lerp(v, Math.abs(b - 0.5) * 2, 0.35);
+      }
+      return clamp(v, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'grunge', name: '做旧', cat: '质感', tags: ['做旧', '脏迹', '磨损'], tile: true,
+    params: [{ k: 'scale', label: '斑块密度', min: 1, max: 12, step: 1, def: 4 },
+      { k: 'speckle', label: '颗粒', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'contrast', label: '对比', min: 0.5, max: 4, step: 0.05, def: 1.7 },
+      { k: 'bias', label: '明暗', min: -0.4, max: 0.4, step: 0.01, def: 0 }],
+    fn: function (p, x, y, t, s) {
+      var n = fbmN(x * p.scale, y * p.scale, p.scale, 5, s, 0.6);
+      if (p.speckle > 0) {
+        var q = 64;
+        var sp = hash2(Math.floor(x * q), Math.floor(y * q), s + 77);
+        n = n * (1 - p.speckle * 0.7) + sp * p.speckle * 0.7;
+      }
+      return clamp((n - 0.5) * p.contrast + 0.5 + p.bias, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'wood', name: '木纹', cat: '质感', tags: ['木纹', '年轮', '材质'], tile: true,
+    params: [{ k: 'rings', label: '年轮数', min: 1, max: 20, step: 1, def: 6 },
+      { k: 'warp', label: '扭曲', min: 0, max: 3, step: 0.05, def: 0.9 },
+      { k: 'grain', label: '木丝', min: 0, max: 1, step: 0.02, def: 0.45 },
+      { k: 'sharp', label: '锐度', min: 1, max: 5, step: 0.1, def: 2.2 }],
+    fn: function (p, x, y, t, s) {
+      var n = fbmN(x * 3, y * 9, 3, 4, s, 0.5);
+      var d = Math.hypot((x - 0.5) * 1.6, (y - 0.5) * 0.5);
+      var v = 0.5 + 0.5 * Math.sin(d * p.rings * TAU + n * p.warp * 6);
+      v = Math.pow(clamp(v, 0, 1), 1 / p.sharp);
+      if (p.grain > 0) v = lerp(v, v * (0.7 + fbmN(x * 6, y * 40, 6, 3, s + 5, 0.5) * 0.6), p.grain);
+      return clamp(v * 1.15, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'glitch', name: '故障', cat: '数字', tags: ['故障', '赛博', '失真'], tile: true, anim: true,
+    params: [{ k: 'rows', label: '条带数', min: 4, max: 80, step: 1, def: 24 },
+      { k: 'shift', label: '错位', min: 0, max: 0.5, step: 0.01, def: 0.16 },
+      { k: 'block', label: '色块', min: 0, max: 1, step: 0.02, def: 0.4 },
+      { k: 'scale', label: '纹理密度', min: 1, max: 16, step: 1, def: 6 },
+      { k: 'speed', label: '跳动', min: 0, max: 1, step: 0.02, def: 0.3 }],
+    fn: function (p, x, y, t, s) {
+      var rows = Math.max(4, Math.round(p.rows));
+      var seg = p.speed > 0 ? Math.floor(t * 10) : 0;
+      var ri = Math.floor(y * rows);
+      var h = hash2(ri, seg, s);
+      var sx = x + (h - 0.5) * p.shift;
+      sx = ((sx % 1) + 1) % 1;
+      var v = fbmN(sx * p.scale, y * p.scale, p.scale, 4, s, 0.5);
+      if (p.block > 0) {
+        var bx = Math.floor(sx * 12), by = Math.floor(y * rows);
+        var bh = hash2(bx, by * 7 + seg, s + 99);
+        v = lerp(v, bh, p.block * (h > 0.72 ? 1 : 0.15));
+      }
+      return clamp((v - 0.5) * 1.8 + 0.5, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'matrix', name: '矩阵', cat: '数字', tags: ['矩阵', '数字雨', '科技'], tile: true, anim: true,
+    params: [{ k: 'cols', label: '列数', min: 4, max: 40, step: 1, def: 16 },
+      { k: 'trail', label: '拖尾', min: 0.05, max: 0.8, step: 0.02, def: 0.3 },
+      { k: 'speed', label: '下落速度', min: 0, max: 1, step: 0.02, def: 0.35 },
+      { k: 'vary', label: '错落', min: 0, max: 1, step: 0.02, def: 0.8 },
+      { k: 'head', label: '头部亮度', min: 0, max: 1, step: 0.02, def: 0.55 }],
+    fn: function (p, x, y, t, s) {
+      var cols = Math.max(4, Math.round(p.cols));
+      var ci = Math.floor(x * cols);
+      var h = hash2(ci, 3, s);
+      var sp = 0.35 + (1 - p.vary + p.vary * h) * 0.65;
+      var head = (h + t * p.speed * sp) % 1.25;
+      var yy = y;
+      var d = head - yy;                                  // >0 在头部之后（拖尾）
+      if (d < 0 || d > p.trail) return p.head * clamp(1 - Math.abs(d) / 0.02, 0, 1);
+      var v = 1 - d / p.trail;
+      var cellH = 0.045;
+      var flick = 0.55 + 0.45 * hash2(ci, Math.floor(y / cellH), s + 7);
+      return clamp(v * flick, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'halftone', name: '半调', cat: '网格', tags: ['半调', '印刷', '网点'], tile: true,
+    params: [{ k: 'cells', label: '网点密度', min: 4, max: 64, step: 1, def: 18 },
+      { k: 'angle', label: '网屏角度', min: 0, max: 90, step: 1, def: 45 },
+      { k: 'scale', label: '明暗来源', min: 1, max: 12, step: 1, def: 3 },
+      { k: 'size', label: '最大点径', min: 0.1, max: 0.9, step: 0.02, def: 0.62 },
+      { k: 'soft', label: '柔化', min: 0.01, max: 0.4, step: 0.01, def: 0.08 }],
+    fn: function (p, x, y, t, s) {
+      var a = p.angle * Math.PI / 180;
+      var u = x * Math.cos(a) + y * Math.sin(a), v = -x * Math.sin(a) + y * Math.cos(a);
+      var q = Math.max(4, Math.round(p.cells));
+      var cx = u * q, cy = v * q;
+      var ix = Math.floor(cx), iy = Math.floor(cy);
+      var tone = fbmN(x * p.scale, y * p.scale, p.scale, 4, s, 0.5);
+      var r = p.size * 0.5 * (0.25 + tone * 1.1);
+      var d = Math.hypot(cx - ix - 0.5, cy - iy - 0.5);
+      return clamp(1 - (d - r) / p.soft, 0, 1);
+    }
+  });
+  TYPES.push({
+    id: 'zigzag', name: '折线', cat: '网格', tags: ['折线', '锯齿', '图案'], tile: true,
+    params: [{ k: 'rows', label: '行数', min: 2, max: 30, step: 1, def: 8 },
+      { k: 'zigs', label: '每行折数', min: 2, max: 30, step: 1, def: 8 },
+      { k: 'thick', label: '线粗', min: 0.01, max: 0.3, step: 0.005, def: 0.06 },
+      { k: 'offset', label: '错行', min: 0, max: 1, step: 0.02, def: 0.5 },
+      { k: 'soft', label: '柔化', min: 0.005, max: 0.2, step: 0.005, def: 0.02 }],
+    fn: function (p, x, y, t, s) {
+      var rows = Math.max(2, Math.round(p.rows));
+      var gy = y * rows, row = Math.floor(gy), fy = gy - row;
+      var zigs = Math.max(2, Math.round(p.zigs));
+      var u = x * zigs + ((row % 2) * p.offset) * 0.5;
+      var fu = u - Math.floor(u);
+      var tri = 1 - Math.abs(fu * 2 - 1);           // 三角波
+      return clamp(1 - Math.abs(fy - (0.15 + tri * 0.7)) / p.thick, 0, 1);
+    }
+  });
+
   var TYPE_BY_ID = {};
   TYPES.forEach(function (x) { TYPE_BY_ID[x.id] = x; });
   var CATS = [];
@@ -533,7 +1151,7 @@
     return {
       id: 'L' + (uid++), type: T.id, name: T.name, visible: true, opacity: 1, blend: 'source-over',
       alphaFromLum: false, color: { mode: 'gray', ramp: '火焰', solid: '#ff8932' },
-      tile: true, fx: {},
+      tile: true, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false },
       seed: seed === undefined ? ((Math.random() * 1e6) | 0) : seed, params: params
     };
   }
@@ -754,13 +1372,33 @@
     if (!T) return null;
     var fn = T.fn, P = layer.params, seed = layer.seed | 0;
     TILING = layer.tile !== false;
+    // 每层变换：把输出像素映射回「源坐标」再采样。这样**任何生成器**都能缩放 / 旋转 / 位移 / 极坐标
+    var tf = layer.tf || {};
+    var sx = tf.sx === undefined ? 1 : tf.sx, sy = tf.sy === undefined ? 1 : tf.sy;
+    var rot = (tf.rot || 0) * Math.PI / 180, ox = tf.ox || 0, oy = tf.oy || 0, polar = !!tf.polar;
+    var hasTf = sx !== 1 || sy !== 1 || rot !== 0 || ox !== 0 || oy !== 0 || polar;
     var f = new Float32Array(size * size);
     var inv = 1 / size;
     for (var y = 0; y < size; y++) {
-      var v0 = y * inv;
       for (var x = 0; x < size; x++) {
-        var v = fn(P, x * inv, v0, t, seed);
-        f[y * size + x] = (!(v >= 0)) ? 0 : (v > 1 ? 1 : v);   // NaN / 负数一律当 0，防呆
+        var u = x * inv, v = y * inv;
+        if (hasTf) {
+          if (polar) {   // 极坐标：把横轴当角度、纵轴当半径
+            var ddx = u - 0.5, ddy = v - 0.5;
+            var pr = Math.hypot(ddx, ddy) * 2, pa = Math.atan2(ddy, ddx) / TAU + 0.5;
+            u = pa; v = pr;
+          }
+          var cx = (u - 0.5) / (sx || 1), cy = (v - 0.5) / (sy || 1);
+          if (rot) { var ca = Math.cos(-rot), sa = Math.sin(-rot); var nx = cx * ca - cy * sa; cy = cx * sa + cy * ca; cx = nx; }
+          cx += 0.5 - ox; cy += 0.5 - oy;
+          if (TILING) { u = cx - Math.floor(cx); v = cy - Math.floor(cy); }
+          else {
+            if (cx < 0 || cx > 1 || cy < 0 || cy > 1) { f[y * size + x] = 0; continue; }
+            u = cx; v = cy;
+          }
+        }
+        var v2 = fn(P, u, v, t, seed);
+        f[y * size + x] = (!(v2 >= 0)) ? 0 : (v2 > 1 ? 1 : v2);   // NaN / 负数一律当 0，防呆
       }
     }
     return applyPostFx(f, size, layer.fx, t);
@@ -773,20 +1411,19 @@
     var ctx = c.getContext('2d');
     var img = ctx.createImageData(size, size);
     var d = img.data;
-    var mode = layer.color.mode, ramp = RAMPS[layer.color.ramp] || RAMPS.火焰, tint = hex2rgb(layer.color.solid);
+    var mode = layer.color.mode, tint = hex2rgb(layer.color.solid);
+    var customStops = (layer.color.stops && layer.color.stops.length >= 2) ? sortStops(layer.color.stops) : null;
+    var lutKey = customStops ? null : (layer.color.ramp || '火焰');
+    var LUT = customStops ? rampLUT(null, customStops)
+      : (imgCache[lutKey] || (imgCache[lutKey] = rampLUT(lutKey, null)));
     for (var y = 0; y < size; y++) {
       for (var x = 0; x < size; x++) {
         var v = f[y * size + x];
         var i = (y * size + x) * 4;
         if (mode === 'solid') { d[i] = tint[0]; d[i + 1] = tint[1]; d[i + 2] = tint[2]; }
         else if (mode === 'ramp') {
-          if (!imgCache[ramp]) {
-            var LUT = new Uint8Array(256 * 3);
-            for (var q = 0; q < 256; q++) { var cc = rampAt(ramp, q / 255); LUT[q * 3] = cc[0]; LUT[q * 3 + 1] = cc[1]; LUT[q * 3 + 2] = cc[2]; }
-            imgCache[ramp] = LUT;
-          }
-          var L = imgCache[ramp], k = (v * 255) | 0;
-          d[i] = L[k * 3]; d[i + 1] = L[k * 3 + 1]; d[i + 2] = L[k * 3 + 2];
+          var k = (v * 255) | 0;
+          d[i] = LUT[k * 3]; d[i + 1] = LUT[k * 3 + 1]; d[i + 2] = LUT[k * 3 + 2];
         } else { var g = (v * 255) | 0; d[i] = g; d[i + 1] = g; d[i + 2] = g; }
         d[i + 3] = layer.alphaFromLum && mode !== 'solid' ? (v * 255) | 0 : 255;
       }
@@ -900,9 +1537,19 @@
   }
   function stamp() { return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); }
 
+  /** 按文档设置产出「用于导出」的画面（可选择压成黑底） */
+  function renderForExport(t) {
+    var src = renderDoc(t);
+    if (!doc.flattenBlack) return src;
+    var c = document.createElement('canvas'); c.width = c.height = doc.size;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, doc.size, doc.size);
+    ctx.drawImage(src, 0, 0);
+    return c;
+  }
   function exportPNG() {
-    renderDoc(tNow);
-    docCanvas.toBlob(function (b) { if (b) download('texture-' + stamp() + '.png', b); }, 'image/png');
+    var c = renderForExport(tNow);
+    c.toBlob(function (b) { if (b) download('texture-' + stamp() + '.png', b); }, 'image/png');
   }
   /** 由灰度生成切线空间法线图 */
   function exportNormal() {
@@ -1021,17 +1668,19 @@
      翻转书是**每格一个独立小元素 + 四周留白**，是喂粒子 / Flipbook / Sprite 的格式。
      参考图那种效果靠三个量：每格尺寸（常见 128）、元素占比（留白多少）、
      元素遮罩（柔边圆形 —— 没有它，整幅噪波缩进格子里只会是一小块方形噪波，不是元素）。 */
-  var sheetCfg = { cols: 8, rows: 8, cell: 128, inset: 0.55, mask: 'soft', mode: 'random', bg: 'transparent', spin: 0 };
+  var sheetCfg = { cols: 8, rows: 8, cell: 128, inset: 0.55, mask: 'soft', mode: 'random', bg: 'transparent', spin: 0, gap: 0 };
 
   /** 纯函数：算每一格的位置和"元素框" —— 自检能直接验，不必依赖画布 */
   function sheetLayout(cfg, cell) {
-    var c = cell || cfg.cell, cells = [];
+    var c = cell || cfg.cell, gap = cfg.gap || 0, cells = [];
+    var step = c + gap;
     for (var i = 0; i < cfg.cols * cfg.rows; i++) {
-      var x = (i % cfg.cols) * c, y = Math.floor(i / cfg.cols) * c;
+      var x = gap + (i % cfg.cols) * step, y = gap + Math.floor(i / cfg.cols) * step;
       var e = c * cfg.inset, off = (c - e) / 2;
       cells.push({ i: i, x: x, y: y, ex: x + off, ey: y + off, es: e });
     }
-    return { cols: cfg.cols, rows: cfg.rows, cell: c, w: c * cfg.cols, h: c * cfg.rows, cells: cells };
+    return { cols: cfg.cols, rows: cfg.rows, cell: c, gap: gap,
+      w: cfg.cols * c + (cfg.cols + 1) * gap, h: cfg.rows * c + (cfg.rows + 1) * gap, cells: cells };
   }
   function renderSheet(cfg, forceCell) {
     var cell = forceCell || cfg.cell;
@@ -1039,8 +1688,13 @@
     var savedSeeds = doc.layers.map(function (l) { return l.seed; });
     doc.size = cell;
     var c = document.createElement('canvas');
-    c.width = cell * cfg.cols; c.height = cell * cfg.rows;
+    var LO = sheetLayout(cfg, cell);
+    c.width = LO.w; c.height = LO.h;
     var ctx = c.getContext('2d');
+    if (cfg.bg !== 'transparent') {          // 有格间距时，缝里也要填背景色
+      ctx.fillStyle = cfg.bg === 'white' ? '#fff' : '#000';
+      ctx.fillRect(0, 0, c.width, c.height);
+    }
     var n = cfg.cols * cfg.rows;
     for (var i = 0; i < n; i++) {
       if (cfg.mode === 'random') doc.layers.forEach(function (l, k) { l.seed = (savedSeeds[k] + i * 7919) | 0; });
@@ -1106,6 +1760,8 @@
     $('ws-sheet-bg').value = sheetCfg.bg;
     $('ws-sheet-spin').value = sheetCfg.spin;
     $('ws-sheet-spin-num').value = sheetCfg.spin;
+    $('ws-sheet-gap').value = sheetCfg.gap || 0;
+    $('ws-sheet-gap-num').value = sheetCfg.gap || 0;
     updateSheetPreview();
     $('ws-sheet-dialog').showModal();
   }
@@ -1123,6 +1779,11 @@
     var CH = ['R', 'G', 'B', 'A'];
     for (var ch = 0; ch < 4; ch++) {
       var id = mapCh[CH[ch]];
+      if (id === 'empty' || id === 'one') {                 // 空通道（全黑 0）/ 常量 1（全白 1）
+        var fill = id === 'one' ? 255 : 0;
+        for (var q = 0; q < size * size; q++) out[q * 4 + ch] = fill;
+        continue;
+      }
       var layer = null;
       if (id === 'doc') layer = null;
       else layer = doc.layers.filter(function (l) { return l.id === id; })[0];
@@ -1146,6 +1807,161 @@
       for (var k = 0; k < size * size; k++) out[k * 4 + ch] = field[k];
     }
     download('packed-rgba-' + stamp() + '.png', encodePNG(size, size, out));
+  }
+
+  /* ───────────────────────────── 色标编辑器 ───────────────────────────── */
+  var rampEdit = { stops: [], sel: null };
+  function builtinStops(name) {
+    var arr = RAMPS[name] || RAMPS['火焰'];
+    return arr.map(function (c, i) { return { p: i / (arr.length - 1), c: c }; });
+  }
+  function drawRampBar() {
+    var cv = $('ws-ramp-bar');
+    if (!cv) return;
+    var ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
+    var LUT = rampLUT(null, rampEdit.stops);
+    for (var x = 0; x < w; x++) {
+      var k = Math.round(x / (w - 1) * 255) * 3;
+      ctx.fillStyle = 'rgb(' + LUT[k] + ',' + LUT[k + 1] + ',' + LUT[k + 2] + ')';
+      ctx.fillRect(x, 0, 1, h);
+    }
+    rampEdit.stops.forEach(function (st) {
+      var px = st.p * (w - 1);
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h);
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, h - 10, 8, 0, TAU);
+      ctx.fillStyle = st.c; ctx.fill();
+      ctx.strokeStyle = (st === rampEdit.sel) ? '#2f6fed' : '#fff';
+      ctx.lineWidth = (st === rampEdit.sel) ? 4 : 2; ctx.stroke();
+    });
+    if ($('ws-ramp-info')) {
+      var idx = rampEdit.stops.indexOf(rampEdit.sel);
+      $('ws-ramp-info').textContent = '共 ' + rampEdit.stops.length + ' 个色标'
+        + (rampEdit.sel ? '，第 ' + (idx + 1) + ' 个在 ' + Math.round(rampEdit.sel.p * 100) + '%' : '');
+    }
+  }
+  function rampSample(p) { return rampAtStops(sortStops(rampEdit.stops), p); }
+  function rgb2hex(rgb) {
+    return '#' + rgb.map(function (v) { return ('0' + Math.max(0, Math.min(255, v | 0)).toString(16)).slice(-2); }).join('');
+  }
+  function rampEventPos(e) {
+    var cv = $('ws-ramp-bar'), r = cv.getBoundingClientRect();
+    return clamp((e.clientX - r.left) / Math.max(1, r.width), 0, 1);
+  }
+  function rampNearest(p) {
+    var best = null, bd = 9;
+    rampEdit.stops.forEach(function (st) { var d = Math.abs(st.p - p); if (d < bd) { bd = d; best = st; } });
+    return { stop: best, dist: bd };
+  }
+  function openRampEditor() {
+    var l = curLayer();
+    if (!l) return;
+    rampEdit.stops = (l.color.stops && l.color.stops.length >= 2)
+      ? l.color.stops.map(function (st) { return { p: st.p, c: st.c }; })
+      : builtinStops(l.color.ramp || '火焰');
+    rampEdit.stops = sortStops(rampEdit.stops);
+    rampEdit.sel = rampEdit.stops[0];
+    var sel = $('ws-ramp-from');
+    sel.textContent = '';
+    Object.keys(RAMPS).forEach(function (k) { sel.appendChild(h('option', { value: k }, [document.createTextNode(k)])); });
+    sel.value = l.color.ramp || '火焰';
+    $('ws-ramp-color').value = rampEdit.sel.c;
+    drawRampBar();
+    $('ws-ramp-dialog').showModal();
+  }
+  function initRampEditor() {
+    var cv = $('ws-ramp-bar'), dragging = false;
+    cv.addEventListener('pointerdown', function (e) {
+      var p = rampEventPos(e);
+      var near = rampNearest(p);
+      if (near.stop) { rampEdit.sel = near.stop; }
+      else {
+        rampEdit.stops.push({ p: p, c: rgb2hex(rampSample(p)) });
+        rampEdit.stops = sortStops(rampEdit.stops);
+        rampEdit.sel = rampNearest(p).stop;
+      }
+      $('ws-ramp-color').value = rampEdit.sel.c;
+      dragging = true;
+      cv.setPointerCapture(e.pointerId);
+      drawRampBar();
+    });
+    cv.addEventListener('pointermove', function (e) {
+      if (!dragging || !rampEdit.sel) return;
+      rampEdit.sel.p = rampEventPos(e);
+      rampEdit.stops = sortStops(rampEdit.stops);
+      drawRampBar();
+    });
+    cv.addEventListener('pointerup', function (e) {
+      dragging = false;
+      try { cv.releasePointerCapture(e.pointerId); } catch (err) {}
+    });
+    $('ws-ramp-color').addEventListener('input', function (e) {
+      if (!rampEdit.sel) return;
+      rampEdit.sel.c = e.target.value;
+      drawRampBar();
+    });
+    $('ws-ramp-del').addEventListener('click', function () {
+      if (rampEdit.stops.length <= 2) { toast('至少要留两个色标'); return; }
+      var i = rampEdit.stops.indexOf(rampEdit.sel);
+      rampEdit.stops.splice(i, 1);
+      rampEdit.sel = rampEdit.stops[Math.max(0, i - 1)];
+      $('ws-ramp-color').value = rampEdit.sel.c;
+      drawRampBar();
+    });
+    $('ws-ramp-from').addEventListener('change', function (e) {
+      rampEdit.stops = builtinStops(e.target.value);
+      rampEdit.sel = rampEdit.stops[0];
+      $('ws-ramp-color').value = rampEdit.sel.c;
+      drawRampBar();
+    });
+    $('ws-ramp-ok').addEventListener('click', function () {
+      var l = curLayer();
+      if (!l) return;
+      snapshot();
+      l.color.stops = rampEdit.stops.map(function (st) { return { p: +st.p.toFixed(4), c: st.c }; });
+      l.color.mode = 'ramp';
+      $('ws-ramp-dialog').close();
+      rebuildAll();
+      toast('色阶已应用（这层的自定义色标）');
+    });
+  }
+
+  /* ───────────────────────────── 我的预设 ───────────────────────────── */
+  var myPresets = [];
+  try { myPresets = JSON.parse(localStorage.getItem('vfx-ws-presets') || '[]') || []; } catch (e) { myPresets = []; }
+  function saveMyPresets() {
+    try { localStorage.setItem('vfx-ws-presets', JSON.stringify(myPresets)); }
+    catch (e) { toast('浏览器存储满了，这个预设没存下'); }
+  }
+  function buildPresets() {
+    var list = $('ws-preset-list');
+    if (!list) return;
+    list.textContent = '';
+    if (!myPresets.length) {
+      list.appendChild(h('p', { class: 'ws-empty', text: '还没有自己的预设。调好一套之后点下面的按钮存下来。' }));
+      return;
+    }
+    myPresets.forEach(function (pr, i) {
+      var load = h('button', { class: 'button secondary small', type: 'button', text: '载入' });
+      var del = h('button', { class: 'button secondary small', type: 'button', text: '删除' });
+      load.addEventListener('click', function () {
+        snapshot();
+        doc.size = pr.size || doc.size;
+        doc.layers = JSON.parse(JSON.stringify(pr.layers));
+        doc.layers.forEach(function (l) {
+          l.id = 'L' + (uid++);
+          if (!l.tf) l.tf = { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false };
+          if (l.type === '__image' && l.image) { var im = new Image(); im.src = l.image; l._img = im; im.onload = function () { draw(); }; }
+        });
+        selId = doc.layers[0] ? doc.layers[0].id : null;
+        rebuildAll();
+        toast('已载入「' + pr.name + '」');
+      });
+      del.addEventListener('click', function () { myPresets.splice(i, 1); saveMyPresets(); buildPresets(); });
+      list.appendChild(h('div', { class: 'ws-preset-row' }, [
+        h('span', { class: 'ws-preset-name', text: pr.name }), load, del
+      ]));
+    });
   }
 
   /* ───────────────────────────── UI 基础 ───────────────────────────── */
@@ -1194,7 +2010,7 @@
   if (!doc.layers || !doc.layers.length) doc = defaultDoc();
   selId = doc.layers[0].id;
 
-  function serialize() { return JSON.stringify({ v: 1, size: doc.size, bg: doc.bg, layers: doc.layers }); }
+  function serialize() { return JSON.stringify({ v: 1, size: doc.size, bg: doc.bg, flattenBlack: !!doc.flattenBlack, layers: doc.layers }); }
   function persist() { try { localStorage.setItem('vfx-workshop-doc', serialize()); } catch (e) { /* 图太大就算了 */ } }
   function snapshot() {
     history.push(serialize());
@@ -1208,7 +2024,7 @@
   }
   function restore(json) {
     var d = JSON.parse(json);
-    doc.size = d.size; doc.bg = d.bg; doc.layers = d.layers;
+    doc.size = d.size; doc.bg = d.bg; doc.flattenBlack = !!d.flattenBlack; doc.layers = d.layers;
     doc.layers.forEach(function (l) { if (l.type === '__image' && l.image && !l._img) { var im = new Image(); im.src = l.image; l._img = im; im.onload = function () { draw(); }; } });
     if (!doc.layers.some(function (l) { return l.id === selId; })) selId = doc.layers[0] ? doc.layers[0].id : null;
     rebuildAll();
@@ -1270,10 +2086,11 @@
   function buildBrowser() {
     var tabs = $('ws-cats');
     tabs.textContent = '';
-    var TAB_EXTRA = ['收藏', '最近'];
+    var TAB_EXTRA = ['动态', '收藏', '最近'];
     CATS_ALL.concat(TAB_EXTRA).forEach(function (cat) {
       var n = cat === '全部' ? TYPES.length
         : cat === '收藏' ? TYPES.filter(function (t) { return favs[t.id]; }).length
+        : cat === '动态' ? TYPES.filter(function (t) { return t.anim; }).length
         : cat === '最近' ? recent.length
         : TYPES.filter(function (t) { return t.cat === cat; }).length;
       if ((cat === '收藏' || cat === '最近') && !n) return;      // 空的时候不占地方
@@ -1285,11 +2102,12 @@
     list.textContent = '';
     var kw = filterText.trim().toLowerCase();
     var shown = TYPES.filter(function (T) {
-      if (filterCat === '收藏') { if (!favs[T.id]) return false; }
+      if (filterCat === '动态') { if (!T.anim) return false; }
+      else if (filterCat === '收藏') { if (!favs[T.id]) return false; }
       else if (filterCat === '最近') { if (recent.indexOf(T.id) < 0) return false; }
       else if (filterCat !== '全部' && T.cat !== filterCat) return false;
       if (!kw) return true;
-      return (T.name + ' ' + T.cat + ' ' + T.tags.join(' ')).toLowerCase().indexOf(kw) >= 0;
+      return (T.name + ' ' + T.id + ' ' + T.cat + ' ' + T.tags.join(' ')).toLowerCase().indexOf(kw) >= 0;
     });
     if (filterCat === '最近') shown.sort(function (a, b) { return recent.indexOf(a.id) - recent.indexOf(b.id); });
     $('ws-type-count').textContent = shown.length + ' / ' + TYPES.length + ' 种';
@@ -1368,6 +2186,31 @@
     box.appendChild(h('label', { class: 'ws-check' }, [tileBox,
       h('span', { text: '四方连续（整数密度下平铺无缝）' })]));
 
+    // ── 变换（任何生成器都能缩放 / 旋转 / 位移 / 极坐标）──
+    box.appendChild(h('div', { class: 'ws-param-group', text: '变换' }));
+    if (!l.tf) l.tf = { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false };
+    [{ k: 'sx', label: '缩放 X', min: 0.1, max: 4, step: 0.01, def: 1 },
+     { k: 'sy', label: '缩放 Y', min: 0.1, max: 4, step: 0.01, def: 1 },
+     { k: 'rot', label: '旋转°', min: -180, max: 180, step: 1, def: 0 },
+     { k: 'ox', label: '水平位移', min: -1, max: 1, step: 0.01, def: 0 },
+     { k: 'oy', label: '垂直位移', min: -1, max: 1, step: 0.01, def: 0 }].forEach(function (pp) {
+      var slider = sliderInput(pp, l.tf, function () { draw(); });
+      var num = numInput(pp, l.tf, pp.def);
+      slider.addEventListener('input', function () { num.value = slider.value; });
+      box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: pp.label }), slider, num]));
+    });
+    var polarBox = h('input', { type: 'checkbox' });
+    polarBox.checked = !!l.tf.polar;
+    polarBox.addEventListener('change', function () { snapshot(); l.tf.polar = polarBox.checked; touch(false); });
+    box.appendChild(h('label', { class: 'ws-check' }, [polarBox, h('span', { text: '极坐标（横轴当角度）' })]));
+    var tfReset = h('button', { class: 'button secondary small', type: 'button', text: '重置变换' });
+    tfReset.addEventListener('click', function () {
+      snapshot();
+      l.tf = { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false };
+      touch(true);
+    });
+    box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '' }), tfReset, h('div')]));
+
     // ── 后处理（对齐了同类工具里最常用的 11 项）──
     box.appendChild(h('div', { class: 'ws-param-group', text: '后处理' }));
     var fxOn = 0;
@@ -1404,8 +2247,21 @@
         if (l.color.ramp === k) o.selected = true;
         sel.appendChild(o);
       });
-      sel.addEventListener('change', function () { snapshot(); l.color.ramp = sel.value; touch(false); });
-      box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '色阶' }), sel, h('div')]));
+      if (l.color.stops && l.color.stops.length) {
+        var opt = h('option', { value: '__custom' }, [document.createTextNode('自定义')]);
+        sel.insertBefore(opt, sel.firstChild);
+        sel.value = '__custom';
+      }
+      sel.addEventListener('change', function () {
+        snapshot();
+        if (sel.value === '__custom') return;
+        l.color.ramp = sel.value;
+        l.color.stops = null;          // 换回内置就把自定义丢掉
+        touch(true);
+      });
+      var editBtn = h('button', { class: 'button secondary small', type: 'button', text: '编辑' });
+      editBtn.addEventListener('click', openRampEditor);
+      box.appendChild(h('div', { class: 'ws-param' }, [h('div', { class: 'ws-param-label', text: '色阶' }), sel, editBtn]));
     } else if (l.color.mode === 'solid') {
       var col = h('input', { type: 'color', value: l.color.solid, style: 'width:100%;height:34px;padding:2px' });
       col.addEventListener('input', function () { l.color.solid = col.value; touch(false); });
@@ -1618,6 +2474,8 @@
       ['B', 'b', '蓝通道', '一般放发光 / 高光'], ['A', 'a', 'Alpha 通道', '当数据用，无损写入']].forEach(function (c) {
       var sel = h('select');
       sel.appendChild(h('option', { value: 'doc' }, [document.createTextNode('（当前画面）')]));
+      sel.appendChild(h('option', { value: 'empty' }, [document.createTextNode('空通道（全黑 0）')]));
+      sel.appendChild(h('option', { value: 'one' }, [document.createTextNode('常量 1（全白 1）')]));
       doc.layers.forEach(function (l) { sel.appendChild(h('option', { value: l.id }, [document.createTextNode(l.name)])); });
       var cur = packMap[c[0]];
       if (cur && cur !== 'doc' && !doc.layers.some(function (l) { return l.id === cur; })) cur = 'doc';
@@ -1836,6 +2694,19 @@
     $('ws-play').addEventListener('click', togglePlay);
     $('ws-time').addEventListener('input', function (e) { tNow = +e.target.value; $('ws-tval').textContent = 't = ' + tNow.toFixed(2) + ' s'; draw(); });
     $('ws-copy').addEventListener('click', copyToClipboard);
+    initRampEditor();
+    buildPresets();
+    $('ws-preset-save').addEventListener('click', function () {
+      var name = prompt('给这套预设起个名字：', '我的预设 ' + (myPresets.length + 1));
+      if (!name) return;
+      myPresets.unshift({ name: name.slice(0, 24), size: doc.size, layers: JSON.parse(JSON.stringify(doc.layers)) });
+      if (myPresets.length > 30) myPresets.length = 30;
+      saveMyPresets(); buildPresets();
+      toast('已存进我的预设');
+    });
+    var flat = $('ws-flatten');
+    flat.checked = !!doc.flattenBlack;
+    flat.addEventListener('change', function () { doc.flattenBlack = flat.checked; persist(); toast(flat.checked ? '导出会压成黑底' : '导出保留透明'); });
     $('ws-seamless').addEventListener('click', function () {
       var v = prompt('无缝化强度（0–1，越大越无缝但细节越软）：', '0.75');
       if (v === null) return;
@@ -1854,13 +2725,13 @@
     $('ws-sheet-mask').addEventListener('change', function (e) { sheetCfg.mask = e.target.value; queueSheetPreview(); });
     $('ws-sheet-mode').addEventListener('change', function (e) { sheetCfg.mode = e.target.value; queueSheetPreview(); });
     $('ws-sheet-bg').addEventListener('change', function (e) { sheetCfg.bg = e.target.value; queueSheetPreview(); });
-    [['ws-sheet-inset', 'inset'], ['ws-sheet-spin', 'spin']].forEach(function (pair) {
+    [['ws-sheet-inset', 'inset'], ['ws-sheet-spin', 'spin'], ['ws-sheet-gap', 'gap']].forEach(function (pair) {
       var range = $(pair[0]), num = $(pair[0] + '-num');
       range.addEventListener('input', function () { sheetCfg[pair[1]] = parseFloat(range.value); num.value = range.value; queueSheetPreview(); });
       num.addEventListener('change', function () {
         var v = parseFloat(num.value);
         if (!isFinite(v)) v = pair[1] === 'spin' ? 0 : 0.55;
-        v = clamp(v, pair[1] === 'spin' ? 0 : 0.15, pair[1] === 'spin' ? 360 : 1);
+        v = pair[1] === 'spin' ? clamp(v, 0, 360) : pair[1] === 'gap' ? clamp(v, 0, 24) : clamp(v, 0.15, 1);
         sheetCfg[pair[1]] = v; range.value = v; num.value = v; queueSheetPreview();
       });
     });
@@ -1932,6 +2803,22 @@
     applySeamless: applySeamless, seamlessPixels: seamlessPixels,
     /** 自检用：量翻转书 —— 尺寸对不对、元素是不是只占一部分、格子四角是不是空的 */
     sheetLayout: sheetLayout,
+    /** 自检用：验自定义色标（带位置的色标）算得对 */
+    rampCheck: function (stops, t) { return rampAtStops(stops, t); },
+    rampLUTCheck: function (stops) { var L = rampLUT(null, stops); return [L[0], L[1], L[2], L[765], L[766], L[767]]; },
+    /** 自检用：给一个变换，量它和原图的平均差（0 = 完全一致） */
+    tfCheck: function (tf) {
+      var base = { type: 'fbm', params: null, seed: 12345, tile: true, fx: {}, tf: { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0, polar: false } };
+      var T = TYPE_BY_ID['fbm'], P = {};
+      T.params.forEach(function (p) { P[p.k] = p.def; });
+      base.params = P;
+      var f0 = renderField(base, 40, 0.3);
+      var lay = JSON.parse(JSON.stringify({ params: P, seed: 12345, tile: true, fx: {}, type: 'fbm', tf: tf }));
+      var f1 = renderField(lay, 40, 0.3);
+      var d = 0;
+      for (var i = 0; i < f0.length; i++) d += Math.abs(f0[i] - f1[i]);
+      return { diff: d / f0.length };
+    },
     sheetProbe: function (over) {
       var cfg = { cols: sheetCfg.cols, rows: sheetCfg.rows, cell: 48, inset: sheetCfg.inset,
         mask: sheetCfg.mask, mode: sheetCfg.mode, bg: sheetCfg.bg, spin: sheetCfg.spin };
