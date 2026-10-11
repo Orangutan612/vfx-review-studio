@@ -6,7 +6,7 @@
  *   - 有些服务商不认 response_format: json_object，遇到就自动去掉重试一次
  *   - 模型回复常带 \`\`\`json 包裹或寒暄，用宽松解析兜住，再不行就要求它只输出 JSON 重试
  */
-import { config } from './config.mjs?v=1791743059635';
+import { config } from './config.mjs?v=1791743271899';
 
 export class LlmError extends Error {
   constructor(message, status, body) {
