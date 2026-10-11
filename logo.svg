@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Asterius 特效评审台">
+  <title>Asterius · 特效评审台</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0e18"/><stop offset=".55" stop-color="#0f1425"/><stop offset="1" stop-color="#141a30"/>
+    </linearGradient>
+    <linearGradient id="fTop" x1="32" y1="10" x2="32" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#bcd9ff"/></linearGradient>
+    <linearGradient id="fRight" x1="54" y1="32" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8fc4ff"/><stop offset="1" stop-color="#4f8ce8"/></linearGradient>
+    <linearGradient id="fDown" x1="32" y1="54" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3f6fd6"/><stop offset="1" stop-color="#6f5cf0"/></linearGradient>
+    <linearGradient id="fLeft" x1="10" y1="32" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c7e2ff"/><stop offset="1" stop-color="#7fb0f5"/></linearGradient>
+    <radialGradient id="core" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".22" stop-color="#ffffff" stop-opacity=".85"/>
+      <stop offset=".55" stop-color="#a8ccff" stop-opacity=".3"/><stop offset="1" stop-color="#6d5cf0" stop-opacity="0"/></radialGradient>
+    <radialGradient id="vign" cx=".5" cy=".42" r=".62">
+      <stop offset="0" stop-color="#2a3a66" stop-opacity=".55"/><stop offset="1" stop-color="#000000" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.1"/></filter>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <rect width="64" height="64" rx="15" fill="url(#vign)"/>
+  <!-- 斜向鬼影：镜头内反射。纵深感来自这一层，它只在大尺寸看得清 -->
+  <path d="M32 32 L36.31 27.69 L32.00 11.00 L27.69 27.69 Z M32 32 L36.31 36.31 L53.00 32.00 L36.31 27.69 Z M32 32 L27.69 36.31 L32.00 53.00 L36.31 36.31 Z M32 32 L27.69 27.69 L11.00 32.00 L27.69 36.31 Z" transform="rotate(45 32 32) scale(1.3) translate(-7.4 -7.4)" fill="#6d5cf0" opacity=".3" filter="url(#soft)"/>
+  <!-- 四个切面：明度上亮下沉，做出切割宝石的立体感 -->
+  <path d="M32 32 L36.31 27.69 L32.00 11.00 L27.69 27.69 Z" fill="url(#fTop)"/>
+  <path d="M32 32 L36.31 36.31 L53.00 32.00 L36.31 27.69 Z" fill="url(#fRight)"/>
+  <path d="M32 32 L27.69 36.31 L32.00 53.00 L36.31 36.31 Z" fill="url(#fDown)"/>
+  <path d="M32 32 L27.69 27.69 L11.00 32.00 L27.69 36.31 Z" fill="url(#fLeft)"/>
+  <g stroke="#ffffff" stroke-width=".5" opacity=".55" stroke-linecap="round"><path d="M32 11 L32 32 M53 32 L32 32 M32 53 L32 32 M11 32 L32 32" fill="none"/></g>
+  <circle cx="32" cy="32" r="15" fill="url(#core)"/>
+  <circle cx="32" cy="32" r="2.5" fill="#ffffff"/>
+  <!-- 防伪层：ASTERIUS 微字环绕 26 遍、15% 透明度。放大成纹样，缩到 16px 融进底色 -->
+  <text x="32" y="32" transform="rotate(0.0 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(13.8 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(27.7 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(41.5 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(55.4 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(69.2 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(83.1 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(96.9 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(110.8 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(124.6 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(138.5 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(152.3 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(166.2 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(180.0 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(193.8 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(207.7 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(221.5 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(235.4 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(249.2 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(263.1 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(276.9 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(290.8 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(304.6 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(318.5 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(332.3 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+  <text x="32" y="32" transform="rotate(346.2 32 32) translate(0 -27.4)" font-family="ui-monospace,Consolas,monospace" font-size="2.3" letter-spacing=".18" text-anchor="middle" fill="#9cc0ff" opacity=".15">ASTERIUS</text>
+
+</svg>
