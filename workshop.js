@@ -1420,6 +1420,7 @@
     'uniform float uP[16];',
     'uniform vec4 uTfA; uniform vec2 uTfB;',       // sx, sy, rot, polar / ox, oy
     '#define TAU 6.28318530718',
+    '#define PI 3.14159265359',
     'float sat(float x){ return clamp(x, 0.0, 1.0); }',
     'float sstep(float a, float b, float x){ float t = clamp((x - a) / (b - a + 1e-6), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }',
     'float hash21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
@@ -1557,8 +1558,497 @@
       '  float v = sstep(-uP[5], uP[5], rb - r);\n' +
       '  if (uP[3] < 1.0) v = mix(v, sstep(uP[1] * 0.06 + 0.004, 0.0, abs(r - rb)), 1.0 - uP[3]);\n' +
       '  return sat(v);\n' +
-      '}'
-  };
+      '}',
+    metaballs: 'float gen(vec2 uv){\n' +
+      '  float d = 1e9;\n' +
+      '  for (int i = 0; i < 16; i++){\n' +
+      '    if (float(i) >= uP[0]) break;\n' +
+      '    float ph = h2(vec2(float(i), 9.0), uSeed) * TAU;\n' +
+      '    float rr = 0.28 * (0.4 + h2(vec2(float(i), 1.0), uSeed));\n' +
+      '    vec2 c = vec2(0.5) + vec2(cos(ph + uTime * uP[3] * TAU), sin(ph * 1.7 + uTime * uP[3] * TAU * 1.3)) * rr;\n' +
+      '    d = smin(d, length(uv - c) - uP[1], max(uP[4], 0.004) * 0.9);\n' +
+      '  }\n' +
+      '  return cov(d, uP[4] * 0.35);\n' +
+      '}',
+    bokeh: 'float gen(vec2 uv){\n' +
+      '  float v = 0.0;\n' +
+      '  for (int i = 0; i < 80; i++){\n' +
+      '    if (float(i) >= uP[0]) break;\n' +
+      '    float ang = h2(vec2(float(i), 1.0), uSeed) * TAU + uTime * uP[4] * TAU;\n' +
+      '    float rad = sqrt(h2(vec2(float(i), 2.0), uSeed)) * 0.42;\n' +
+      '    vec2 c = vec2(0.5) + vec2(cos(ang), sin(ang)) * rad;\n' +
+      '    float r = uP[1] * (0.35 + h2(vec2(float(i), 3.0), uSeed) * uP[2] * 1.65);\n' +
+      '    float d = length(uv - c) - r;\n' +
+      '    float disc = cov(d, uP[5]);\n' +
+      '    float ring = uP[3] * cov(abs(d) - max(0.006, r * 0.13), 0.005);\n' +
+      '    v = max(v, max(disc, ring));\n' +
+      '  }\n' +
+      '  return sat(v);\n' +
+      '}',
+    spark: 'float gen(vec2 uv){\n' +
+      '  float v = 0.0;\n' +
+      '  for (int i = 0; i < 60; i++){\n' +
+      '    if (float(i) >= uP[0]) break;\n' +
+      '    float h1 = h2(vec2(float(i), 1.0), uSeed), hb = h2(vec2(float(i), 2.0), uSeed), h3 = h2(vec2(float(i), 3.0), uSeed);\n' +
+      '    float ang = radians(uP[3]) + (h1 - 0.5) * uP[4] * TAU;\n' +
+      '    float prog = fract(hb + uTime * uP[5]);\n' +
+      '    vec2 dir = vec2(cos(ang), sin(ang));\n' +
+      '    vec2 c = vec2(0.5) + dir * (0.06 + h3 * 0.26 + prog * 0.38);\n' +
+      '    float sz = uP[1] * (0.4 + h3);\n' +
+      '    float d = sdSeg(uv, c, c - dir * (uP[2] * 0.26 + sz)) - sz;\n' +
+      '    v = max(v, cov(d, max(0.004, sz * 0.5)));\n' +
+      '  }\n' +
+      '  return sat(v * 1.15);\n' +
+      '}',
+    cells: 'float gen(vec2 uv){\n' +
+      '  vec2 p = uv * uP[0];\n' +
+      '  vec2 ip = floor(p), fp = p - ip;\n' +
+      '  float f1 = 9.0, f2 = 9.0; vec2 cell = vec2(0.0);\n' +
+      '  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++){\n' +
+      '    vec2 g = ip + vec2(float(i), float(j));\n' +
+      '    vec2 gg = uTiling > 0.5 ? mod(g, uP[0]) : g;\n' +
+      '    vec2 o = vec2(h2(gg + vec2(1.3, 2.7), uSeed), h2(gg + vec2(4.1, 5.9), uSeed));\n' +
+      '    float d = length(vec2(float(i), float(j)) + o - fp);\n' +
+      '    if (d < f1) { f2 = f1; f1 = d; cell = gg; } else if (d < f2) { f2 = d; }\n' +
+      '  }\n' +
+      '  float shade = 0.35 + h2(cell + vec2(7.7, 3.3), uSeed) * 0.65;\n' +
+      '  float body = mix(1.0, shade, uP[2]);\n' +
+      '  float edge = sstep(0.0, max(uP[1], 1e-3), f2 - f1);\n' +
+      '  return sat(mix(body * 0.4, body, edge));\n' +
+      '}',
+    cross: 'float gen(vec2 uv){\n' +
+      '  float a = uTime * uP[3] * TAU, ca = cos(a), sa = sin(a);\n' +
+      '  vec2 d = uv - 0.5;\n' +
+      '  vec2 q = vec2(abs(d.x * ca + d.y * sa), abs(-d.x * sa + d.y * ca));\n' +
+      '  float hbar = length(max(q - vec2(uP[1], uP[0]), 0.0)) + min(max(q.x - uP[1], q.y - uP[0]), 0.0);\n' +
+      '  float vbar = length(max(q - vec2(uP[0], uP[1]), 0.0)) + min(max(q.x - uP[0], q.y - uP[1]), 0.0);\n' +
+      '  float v = cov(min(hbar, vbar), uP[4]);\n' +
+      '  if (uP[2] > 0.0) v = max(v, uP[2] * gauss(length(uv - 0.5), max(uP[0], 1e-3) * 1.6));\n' +
+      '  return sat(v * (0.5 + 0.5 * pow(max(0.0, 1.0 - length(q) / (uP[1] * 1.05)), 0.6)));\n' +
+      '}',
+    crescent: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[3]), ca = cos(a), sa = sin(a);\n' +
+      '  vec2 d = uv - 0.5;\n' +
+      '  vec2 q = vec2(d.x * ca + d.y * sa, -d.x * sa + d.y * ca);\n' +
+      '  float R = uP[0] * 0.5;\n' +
+      '  vec2 c2 = vec2(R * uP[2] - R * 0.2, 0.0);\n' +
+      '  float v = cov(length(q) - R, uP[4]) * (1.0 - cov(length(q - c2) - R * uP[1], uP[4]));\n' +
+      '  return sat(v * (0.55 + 0.45 * sstep(R, R * 0.25, length(q - c2))));\n' +
+      '}',
+    godray: 'float gen(vec2 uv){\n' +
+      '  vec2 o = vec2(0.5, -0.35); vec2 v = uv - o;\n' +
+      '  float a = atan(v.x, -v.y);\n' +
+      '  float n = max(3.0, floor(uP[0] + 0.5));\n' +
+      '  float idx = (a * uP[1] + 0.5) * n;\n' +
+      '  float cell = floor(idx); float f = abs(idx - cell - 0.5) * 2.0;\n' +
+      '  float rnd = h2(vec2(cell, 11.0), uSeed);\n' +
+      '  float w = 0.30 + rnd * 0.55;\n' +
+      '  float shaft = pow(max(0.0, 1.0 - f / w), 2.0);\n' +
+      '  shaft *= sstep(uP[2], uP[2] * 0.15, length(v));\n' +
+      '  float nz = fbmG(uv * uP[4] + vec2(uTime * uP[5], 0.0), uP[4], 4.0, uSeed, 0.5);\n' +
+      '  shaft *= (1.0 - uP[3] + uP[3] * (0.5 + nz));\n' +
+      '  return sat(shaft * 1.35);\n' +
+      '}',
+    matrix: 'float gen(vec2 uv){\n' +
+      '  float cols = max(4.0, floor(uP[0] + 0.5));\n' +
+      '  float ci = floor(uv.x * cols);\n' +
+      '  float h = h2(vec2(ci, 3.0), uSeed);\n' +
+      '  float sp = 0.35 + (1.0 - uP[3] + uP[3] * h) * 0.65;\n' +
+      '  float head = fract(h + uTime * uP[2] * sp);\n' +
+      '  float d = head - uv.y; if (d < 0.0) d += 1.0;\n' +
+      '  float trail = d / max(uP[1], 1e-3);\n' +
+      '  float body = 0.0;\n' +
+      '  if (trail < 1.0) {\n' +
+      '    float c = floor(uv.y * 48.0);\n' +
+      '    body = (1.0 - trail) * (0.45 + 0.55 * h2(vec2(ci, c), uSeed));\n' +
+      '  }\n' +
+      '  float hx = abs(fract(uv.x * cols) - 0.5);\n' +
+      '  float hy = abs(uv.y - head);\n' +
+      '  float headGlow = uP[4] * cov(max(hx - 0.18, hy - 0.012), 0.012);\n' +
+      '  return sat(max(body, headGlow));\n' +
+      '}',
+    crystal: 'float gen(vec2 uv){\n' +
+      '  vec2 p = uv * uP[0];\n' +
+      '  vec2 ip = floor(p), fp = p - ip;\n' +
+      '  float f1 = 9.0, f2 = 9.0; vec2 cell = vec2(0.0);\n' +
+      '  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++){\n' +
+      '    vec2 g = ip + vec2(float(i), float(j));\n' +
+      '    vec2 gg = uTiling > 0.5 ? mod(g, uP[0]) : g;\n' +
+      '    vec2 o = vec2(h2(gg + vec2(1.3, 2.7), uSeed), h2(gg + vec2(4.1, 5.9), uSeed));\n' +
+      '    float d = length(vec2(float(i), float(j)) + o - fp);\n' +
+      '    if (d < f1) { f2 = f1; f1 = d; cell = gg; } else if (d < f2) { f2 = d; }\n' +
+      '  }\n' +
+      '  float shade = h2(cell + vec2(9.1, 2.3), uSeed);\n' +
+      '  float edge = sstep(0.0, max(uP[2], 1e-3), f2 - f1);\n' +
+      '  float body = mix(0.25 + shade * 0.75, 1.0, uP[1]);\n' +
+      '  return sat(body * (0.35 + 0.65 * edge) + (1.0 - edge) * uP[3]);\n' +
+      '}',
+    weave: 'float gen(vec2 uv){\n' +
+      '  float q = max(2.0, floor(uP[0] + 0.5));\n' +
+      '  vec2 p = uv * q; vec2 ip = floor(p), fp = p - ip;\n' +
+      '  float odd = mod(ip.x + ip.y, 2.0);\n' +
+      '  float across = odd < 0.5 ? fp.y : fp.x;\n' +
+      '  float along = odd < 0.5 ? fp.x : fp.y;\n' +
+      '  float w = 0.5 * (1.0 - uP[1] * 0.55);\n' +
+      '  float thread = cov(abs(across - 0.5) - w * 0.5, 0.05);\n' +
+      '  thread *= 0.7 + 0.3 * cos((along - 0.5) * PI);\n' +
+      '  float base = odd < 0.5 ? 0.85 : 0.55;\n' +
+      '  return sat((mix(base, 1.0, thread) - 0.5) * uP[2] + 0.5);\n' +
+      '}',
+    mosaic: 'float gen(vec2 uv){\n' +
+      '  float q = max(2.0, floor(uP[0] + 0.5));\n' +
+      '  vec2 p = uv * q; vec2 ip = floor(p), fp = p - ip;\n' +
+      '  vec2 gg = uTiling > 0.5 ? mod(ip, q) : ip;\n' +
+      '  float a = h2(gg + vec2(3.3, 1.7), uSeed);\n' +
+      '  float b = h2(gg + vec2(8.1, 5.5), uSeed);\n' +
+      '  vec2 c = fp - 0.5;\n' +
+      '  float ang = (b - 0.5) * uP[3] * 1.2;\n' +
+      '  float ca = cos(ang), sa = sin(ang);\n' +
+      '  vec2 r = vec2(c.x * ca - c.y * sa, c.x * sa + c.y * ca);\n' +
+      '  float hs = 0.5 - uP[1] * 0.5;\n' +
+      '  float d = max(abs(r.x), abs(r.y)) - hs;\n' +
+      '  float bevel = 1.0 - sat(d / max(0.02, hs * 0.5));\n' +
+      '  return sat(cov(d, uP[4]) * mix(1.0, 0.25 + a * 0.75, uP[2]) * (0.55 + 0.45 * bevel));\n' +
+      '}',
+    grunge: 'float gen(vec2 uv){\n' +
+      '  vec2 p = uv * uP[0];\n' +
+      '  float n1 = fbmG(p, uP[0], 5.0, uSeed, 0.6);\n' +
+      '  float n2 = fbmG(p * 2.3 + 17.0, uP[0] * 1.4, 3.0, uSeed + 51.0, 0.5);\n' +
+      '  float v = mix(n1, n1 * 0.6 + n2 * 0.4, 0.5);\n' +
+      '  if (uP[1] > 0.0) v = mix(v, h2(floor(uv * 96.0), uSeed + 77.0), uP[1] * 0.35);\n' +
+      '  return sat((v - 0.5) * uP[2] + 0.5 + uP[3]);\n' +
+      '}',
+    lightning: 'float gen(vec2 uv){\n' +
+      '  float v = 0.0;\n' +
+      '  float segs = 14.0;\n' +
+      '  float branches = max(1.0, floor(uP[0] + 0.5));\n' +
+      '  for (int b = 0; b < 6; b++){\n' +
+      '    if (float(b) >= branches) break;\n' +
+      '    float off = b == 0 ? 0.0 : (h2(vec2(float(b), 3.0), uSeed) - 0.5) * 0.55;\n' +
+      '    float cx = 0.5 + off;\n' +
+      '    float amp = uP[3] * (b == 0 ? 1.0 : 0.5);\n' +
+      '    vec2 prev = vec2(cx, 1.05);\n' +
+      '    for (int i = 1; i <= 16; i++){\n' +
+      '      float fi = float(i);\n' +
+      '      if (fi > segs) break;\n' +
+      '      float n0 = h2(vec2(fi, float(b)), uSeed) - 0.5;\n' +
+      '      vec2 pp = vec2(cx + n0 * amp * 2.0, 1.0 - fi / segs);\n' +
+      '      float d = sdSeg(uv, prev, pp) - uP[1];\n' +
+      '      float core = cov(d, max(uP[1] * 0.35, 0.002));\n' +
+      '      float glow = uP[2] * exp(-max(d, 0.0) / max(uP[1] * 6.0, 0.01));\n' +
+      '      v = max(v, max(core, glow));\n' +
+      '      prev = pp;\n' +
+      '    }\n' +
+      '  }\n' +
+      '  float fl = uP[4] > 0.0 ? (0.6 + 0.4 * h2(vec2(floor(uTime * 12.0), 5.0), uSeed)) : 1.0;\n' +
+      '  return sat(v * mix(1.0, fl, uP[4]));\n' +
+      '}',
+    dissolve: 'float gen(vec2 uv){\n' +
+      '  vec2 q = floor(uv * 128.0);\n' +
+      '  float dith = fract(dot(q, vec2(0.754877, 0.569840)));\n' +
+      '  float n = fbmG(uv * uP[1] * 0.5, max(1.0, uP[1] * 0.05), 4.0, uSeed, 0.55);\n' +
+      '  float g = mix(dith, n, sat(uP[3]));\n' +
+      '  float e = max(uP[2], 1e-3);\n' +
+      '  float inside = 1.0 - sstep(uP[0] - e, uP[0] + e, g);\n' +
+      '  float rim = exp(-pow((g - uP[0]) / (e * 0.8), 2.0));\n' +
+      '  return sat(max(inside, rim * 0.9));\n' +
+      '}',
+    energy: 'float gen(vec2 uv){\n' +
+      '  vec2 p = uv * uP[0];\n' +
+      '  float n1 = fbmG(p + vec2(uTime * uP[1] * 2.0, -uTime * uP[1]), uP[0], 4.0, uSeed, 0.55);\n' +
+      '  float tb = turbG(p * 1.4 + vec2(0.0, uTime * uP[1]), max(1.0, uP[0] * 2.0), 4.0, uSeed + 31.0);\n' +
+      '  float v = pow(sat(mix(n1, 1.0 - tb, uP[4])), 1.0 / max(uP[2], 0.2));\n' +
+      '  v *= 1.0 + uP[3] * 0.6 * sin(uTime * TAU * 2.0);\n' +
+      '  return sat(v * 1.25);\n' +
+      '}',
+    plasma: 'float gen(vec2 uv){\n' +
+      '  float q = uP[0];\n' +
+      '  float ph = uTime * uP[1] * TAU;\n' +
+      '  vec2 w = vec2(fbmG(uv * q * 0.7 + 3.0, max(1.0, q * 0.7), 3.0, uSeed + 11.0, 0.5),\n' +
+      '                fbmG(uv * q * 0.7 + 9.0, max(1.0, q * 0.7), 3.0, uSeed + 23.0, 0.5)) - 0.5;\n' +
+      '  vec2 p = uv + w * 0.6;\n' +
+      '  float v = sin(p.x * q * TAU + ph) + sin(p.y * q * TAU - ph * 0.7)\n' +
+      '          + sin((p.x + p.y) * q * 0.8 * TAU + ph * 1.3) + sin((p.x - p.y) * q * 1.1 * TAU - ph * 1.1)\n' +
+      '          + 0.7 * sin(length(p - 0.5) * q * 2.2 * TAU - ph * 2.0);\n' +
+      '  v = sat(v / 3.7 * 0.5 + 0.5);\n' +
+      '  return sat(pow(v, 1.0 / max(uP[2], 0.2)) * 1.15);\n' +
+      '}',
+    fbm: 'float gen(vec2 uv){\n' +
+      '  float u = uv.x * uP[0] + uTime * uP[4], v0 = uv.y * uP[0];\n' +
+      '  if (uP[3] > 0.0) {\n' +
+      '    float wx = fbmG(vec2(u * 0.5 + 11.0, v0 * 0.5), max(1.0, round(uP[0] * 0.5)), 3.0, uSeed + 51.0, 0.5) - 0.5;\n' +
+      '    float wy = fbmG(vec2(u * 0.5, v0 * 0.5 + 23.0), max(1.0, round(uP[0] * 0.5)), 3.0, uSeed + 97.0, 0.5) - 0.5;\n' +
+      '    u += wx * uP[3] * 2.0; v0 += wy * uP[3] * 2.0;\n' +
+      '  }\n' +
+      '  float n = fbmG(vec2(u, v0), uP[0], uP[1], uSeed, uP[2]);\n' +
+      '  return sat((n - 0.5) * uP[5] + 0.5 + uP[6]);\n' +
+      '}',
+    cloud: 'float gen(vec2 uv){\n' +
+      '  float u = uv.x * uP[0] + uTime * uP[4], v0 = uv.y * uP[0];\n' +
+      '  if (uP[3] > 0.0) {\n' +
+      '    float wx = fbmG(vec2(u * 0.6 + 7.0, v0 * 0.6), max(1.0, round(uP[0] * 0.5)), 3.0, uSeed + 31.0, 0.5) - 0.5;\n' +
+      '    float wy = fbmG(vec2(u * 0.6, v0 * 0.6 + 19.0), max(1.0, round(uP[0] * 0.5)), 3.0, uSeed + 71.0, 0.5) - 0.5;\n' +
+      '    u += wx * uP[3] * 2.5; v0 += wy * uP[3] * 2.5;\n' +
+      '  }\n' +
+      '  float v = fbmG(vec2(u, v0), uP[0], uP[1], uSeed, 0.55);\n' +
+      '  v = 1.0 - abs(v * 2.0 - 1.0);\n' +
+      '  return sat((pow(v, 1.0 + uP[2]) - 0.5) * uP[5] + 0.5);\n' +
+      '}',
+    turb: 'float gen(vec2 uv){\n' +
+      '  float v = turbG(vec2(uv.x * uP[0] + uTime * uP[2], uv.y * uP[0]), uP[0], uP[1], uSeed);\n' +
+      '  return sat(pow(v, 1.0 / uP[3]) * 1.15);\n' +
+      '}',
+    marble: 'float gen(vec2 uv){\n' +
+      '  float n = fbmG(uv * uP[0], uP[0], 5.0, uSeed, 0.5);\n' +
+      '  return sat(pow(0.5 + 0.5 * sin((uv.x + uv.y) * uP[1] * PI + n * uP[2] * TAU), 1.0 / uP[3]) * 1.1);\n' +
+      '}',
+    vortex: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float a = atan(d.y, d.x) + uP[1] * r + uTime * uP[3] * TAU;\n' +
+      '  float v = 0.5 + 0.5 * sin(a * uP[0] + fbmG(uv * uP[2], uP[2], 4.0, uSeed, 0.5) * 3.0);\n' +
+      '  return sat(v * (1.0 - sat((r - 0.55) * uP[4] * 2.0)));\n' +
+      '}',
+    speedlines: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float a = (atan(d.y, d.x) + PI) / TAU;\n' +
+      '  float idx = a * uP[0], cell = floor(idx);\n' +
+      '  float rnd = h2(vec2(cell, 7.0), uSeed);\n' +
+      '  float start = uP[1] + rnd * uP[2] * 0.5;\n' +
+      '  float v = r > start ? 1.0 : 0.0;\n' +
+      '  float f = abs(idx - cell - 0.5) * 2.0;\n' +
+      '  v *= sat((1.0 - f) / (0.35 + rnd * 0.5));\n' +
+      '  if (uP[3] > 0.0) v *= sat(1.0 - (r - start) * uP[3] * 2.5);\n' +
+      '  return sat(v);\n' +
+      '}',
+    rays: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float a = (atan(d.y, d.x) + PI) / TAU;\n' +
+      '  float idx = a * uP[0], cell = floor(idx);\n' +
+      '  float f = abs(idx - cell - 0.5) * 2.0;\n' +
+      '  float rnd = h2(vec2(cell, 13.0), uSeed);\n' +
+      '  float L = uP[1] * (0.45 + rnd * 0.55);\n' +
+      '  if (uP[4] > 0.0) L *= 1.0 - uP[4] * 0.5 * (0.5 + 0.5 * sin(uTime * TAU * 2.0 + cell));\n' +
+      '  float v = sat(1.0 - f / uP[2]) * sat(1.0 - r / max(L, 1e-4));\n' +
+      '  if (uP[3] > 0.0) v = max(v, uP[3] * gauss(r, uP[3] * 1.2));\n' +
+      '  return sat(v);\n' +
+      '}',
+    shock: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float rad = uP[0] + uTime * uP[4];\n' +
+      '  float v = sat(1.0 - abs(r - rad) / max(uP[1], 1e-4));\n' +
+      '  float n = fbmG(uv * uP[3], uP[3], 4.0, uSeed, 0.5);\n' +
+      '  return sat(v * (1.0 - uP[2] * (1.0 - n)));\n' +
+      '}',
+    checker: 'float gen(vec2 uv){\n' +
+      '  vec2 w = uv;\n' +
+      '  if (uP[1] > 0.0) {\n' +
+      '    w.x += (fbmG(uv * uP[2], uP[2], 4.0, uSeed, 0.5) - 0.5) * uP[1] * 0.1;\n' +
+      '    w.y += (fbmG(uv * uP[2] + 5.0, uP[2], 4.0, uSeed, 0.5) - 0.5) * uP[1] * 0.1;\n' +
+      '  }\n' +
+      '  float a = floor(w.x * uP[0]) + floor(w.y * uP[0]);\n' +
+      '  return mod(a, 2.0) == 0.0 ? 1.0 : 0.0;\n' +
+      '}',
+    dots: 'float gen(vec2 uv){\n' +
+      '  vec2 c = uv * uP[0]; vec2 ip = floor(c);\n' +
+      '  vec2 gg = uTiling > 0.5 ? mod(ip, uP[0]) : ip;\n' +
+      '  float r = uP[1] * 0.5 * (1.0 - uP[2] + uP[2] * h2(gg, uSeed));\n' +
+      '  return sat(1.0 - (length(c - ip - 0.5) - r) / max(uP[3], 1e-4));\n' +
+      '}',
+    stripes: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[2]);\n' +
+      '  float u = uv.x * cos(a) + uv.y * sin(a);\n' +
+      '  if (uP[3] > 0.0) u += (fbmG(uv * 4.0, 4.0, 4.0, uSeed, 0.5) - 0.5) * uP[3] * 0.1;\n' +
+      '  return sat((uP[1] - fract(u * uP[0])) / max(uP[4], 1e-4) + 0.5);\n' +
+      '}',
+    hex: 'float gen(vec2 uv){\n' +
+      '  float q = uP[0], k = 0.8660254;\n' +
+      '  float d1 = abs(fract(uv.x * q) - 0.5);\n' +
+      '  float d2 = abs(fract((uv.x * 0.5 + uv.y * k) * q) - 0.5);\n' +
+      '  float d3 = abs(fract((-uv.x * 0.5 + uv.y * k) * q) - 0.5);\n' +
+      '  return sat((min(d1, min(d2, d3)) - uP[1]) / max(uP[2], 1e-4) + 0.5);\n' +
+      '}',
+    cracks: 'float gen(vec2 uv){\n' +
+      '  vec2 j = uv;\n' +
+      '  if (uP[3] > 0.0) {\n' +
+      '    j.x += (fbmG(uv * 12.0, 12.0, 3.0, uSeed, 0.5) - 0.5) * uP[3] * 0.08;\n' +
+      '    j.y += (fbmG(uv * 12.0 + 3.0, 12.0, 3.0, uSeed, 0.5) - 0.5) * uP[3] * 0.08;\n' +
+      '  }\n' +
+      '  vec2 p = j * uP[0]; vec2 ip = floor(p), fp = p - ip;\n' +
+      '  float f1 = 9.0, f2 = 9.0;\n' +
+      '  for (int yy = -1; yy <= 1; yy++) for (int xx = -1; xx <= 1; xx++){\n' +
+      '    vec2 g = ip + vec2(float(xx), float(yy));\n' +
+      '    vec2 gg = uTiling > 0.5 ? mod(g, uP[0]) : g;\n' +
+      '    vec2 o = vec2(h2(gg + vec2(1.3, 2.7), uSeed), h2(gg + vec2(4.1, 5.9), uSeed));\n' +
+      '    float dd = length(vec2(float(xx), float(yy)) + o - fp);\n' +
+      '    if (dd < f1) { f2 = f1; f1 = dd; } else if (dd < f2) { f2 = dd; }\n' +
+      '  }\n' +
+      '  float seam = 1.0 - sat((f2 - f1) / max(uP[1], 1e-4));\n' +
+      '  return sat(mix(1.0 - seam, seam, uP[2]));\n' +
+      '}',
+    scratches: 'float gen(vec2 uv){\n' +
+      '  float v = 0.0;\n' +
+      '  for (int i = 0; i < 60; i++){\n' +
+      '    if (float(i) >= uP[0]) break;\n' +
+      '    float fi = float(i);\n' +
+      '    float ang = (h2(vec2(fi, 1.0), uSeed) - 0.5) * uP[3] * PI + PI * 0.5;\n' +
+      '    vec2 dir = vec2(cos(ang), sin(ang));\n' +
+      '    vec2 nrm = vec2(-dir.y, dir.x);\n' +
+      '    vec2 d = uv - 0.5;\n' +
+      '    float w = uP[2] * (0.4 + h2(vec2(fi, 3.0), uSeed) * 0.9);\n' +
+      '    float line = sat(1.0 - abs(dot(d, nrm) - (h2(vec2(fi, 2.0), uSeed) - 0.5) * 1.7) / max(w, 1e-5));\n' +
+      '    line *= sat(1.0 - abs(dot(d, dir)) / max(uP[1] * 0.5, 1e-4));\n' +
+      '    v = max(v, line);\n' +
+      '  }\n' +
+      '  return sat(v);\n' +
+      '}',
+    rings: 'float gen(vec2 uv){\n' +
+      '  vec2 d = uv - 0.5; float r = length(d) * 2.0;\n' +
+      '  float rr = r * uP[0] + uTime * uP[4] * uP[0];\n' +
+      '  if (uP[2] > 0.0) rr += (fbmG(uv * uP[3], uP[3], 3.0, uSeed, 0.5) - 0.5) * uP[2] * 6.0;\n' +
+      '  float f = abs(fract(rr) - 0.5) * 2.0;\n' +
+      '  return sat(1.0 - f / max(uP[1], 1e-4));\n' +
+      '}',
+    ripple: 'float gen(vec2 uv){\n' +
+      '  float n1 = fbmG(uv * uP[0], uP[0], 4.0, uSeed, 0.5);\n' +
+      '  float n2 = turbG(uv * uP[0] * 1.7 + vec2(7.0, 3.0), max(1.0, uP[0] * 2.0), 3.0, uSeed);\n' +
+      '  float v = 0.5 + 0.5 * sin((n1 * (1.0 - uP[3]) + n2 * uP[3]) * PI * 6.0 + uTime * uP[1] * TAU);\n' +
+      '  return sat(pow(v, 1.0 / uP[2]) * 1.25);\n' +
+      '}',
+    circuit: 'float gen(vec2 uv){\n' +
+      '  float q = uP[0], gx = uv.x * q, gy = uv.y * q;\n' +
+      '  float ix = floor(gx), iy = floor(gy), fx = gx - ix, fy = gy - iy;\n' +
+      '  vec2 gg = uTiling > 0.5 ? mod(vec2(ix, iy), q) : vec2(ix, iy);\n' +
+      '  float h = h2(gg, uSeed);\n' +
+      '  float d = 9.0;\n' +
+      '  if (h < uP[2] * 0.45) d = abs(fy - 0.5);\n' +
+      '  else if (h < uP[2] * 0.9) d = abs(fx - 0.5);\n' +
+      '  else if (h < uP[2]) d = min(abs(fx - 0.5), abs(fy - 0.5));\n' +
+      '  float v = sat(1.0 - (d - uP[1]) / max(uP[4], 1e-4));\n' +
+      '  if (uP[3] > 0.0 && h2(gg + vec2(51.0, 17.0), uSeed) < uP[3])\n' +
+      '    v = max(v, sat(1.0 - length(vec2(fx, fy) - 0.5) / max(uP[1] * 1.6, 1e-4)));\n' +
+      '  return sat(v);\n' +
+      '}',
+    shimmer: 'float gen(vec2 uv){\n' +
+      '  float q = max(2.0, round(uP[0]));\n' +
+      '  vec2 ip = floor(uv * q);\n' +
+      '  vec2 gg = uTiling > 0.5 ? mod(ip, q) : ip;\n' +
+      '  float h = h2(gg, uSeed);\n' +
+      '  if (h < uP[3]) return 0.0;\n' +
+      '  vec2 px = gg + vec2(h2(gg, uSeed + 13.0), h2(gg, uSeed + 29.0));\n' +
+      '  float tw = 0.5 + 0.5 * sin(uTime * TAU * uP[2] + h * TAU * 3.0);\n' +
+      '  return sat((1.0 - length(uv * q - px) / max(uP[1], 1e-4)) * tw);\n' +
+      '}',
+    fire: 'float gen(vec2 uv){\n' +
+      '  float yy = 1.0 - uv.y;\n' +
+      '  float n = turbG(vec2(uv.x * uP[0], yy * uP[0] * 1.8 - uTime * uP[1] * uP[0] * 2.0), uP[0], 5.0, uSeed);\n' +
+      '  float up = pow(sat(yy / max(0.05, uP[3])), 0.9);\n' +
+      '  float v = (1.0 - n * 1.15) * up * uP[2];\n' +
+      '  if (uP[4] > 0.0) v += uP[4] * 0.35 * (fbmG(vec2(uv.x * uP[0] * 2.0, yy * uP[0] * 3.0 - uTime * uP[1] * 3.0), uP[0] * 2.0, 3.0, uSeed, 0.5) - 0.5) * up;\n' +
+      '  return sat(v);\n' +
+      '}',
+    caustics: 'float gen(vec2 uv){\n' +
+      '  float n1 = fbmG(uv * uP[0] + vec2(uTime * uP[1], 0.0), uP[0], 4.0, uSeed, 0.55);\n' +
+      '  float n2 = fbmG(uv * uP[0] * 1.6 - vec2(uTime * uP[1], 0.0) + 3.0, max(1.0, uP[0] * 2.0), 4.0, uSeed + 91.0, 0.55);\n' +
+      '  float v = pow(0.5 + 0.5 * sin((n1 * 0.6 + n2 * 0.4) * PI * 5.0), uP[2]);\n' +
+      '  if (uP[3] > 0.0) {\n' +
+      '    float qw = max(1.0, round(uP[0] * 1.3));\n' +
+      '    vec2 p = uv * qw; vec2 ip = floor(p), fp = p - ip;\n' +
+      '    float f1 = 9.0, f2 = 9.0;\n' +
+      '    for (int jj = -1; jj <= 1; jj++) for (int ii = -1; ii <= 1; ii++){\n' +
+      '      vec2 g = ip + vec2(float(ii), float(jj));\n' +
+      '      vec2 gg = uTiling > 0.5 ? mod(g, qw) : g;\n' +
+      '      vec2 o = vec2(h2(gg + vec2(1.3, 2.7), uSeed + 7.0), h2(gg + vec2(4.1, 5.9), uSeed + 7.0));\n' +
+      '      float dd = length(vec2(float(ii), float(jj)) + o - fp);\n' +
+      '      if (dd < f1) { f2 = f1; f1 = dd; } else if (dd < f2) { f2 = dd; }\n' +
+      '    }\n' +
+      '    float w = sat((f2 - f1) * 3.0);\n' +
+      '    v = mix(v, v * (0.4 + 0.6 * w), uP[3]);\n' +
+      '  }\n' +
+      '  return sat(v);\n' +
+      '}',
+    aurora: 'float gen(vec2 uv){\n' +
+      '  float n = fbmG(vec2(uv.x * uP[3] + uTime * uP[4], uv.y * uP[3] * 0.7), uP[3], 4.0, uSeed, 0.5);\n' +
+      '  float yy = uv.y * 0.75 + 0.15, v = 0.0;\n' +
+      '  for (int i = 0; i < 12; i++){\n' +
+      '    if (float(i) >= uP[0]) break;\n' +
+      '    float c = (float(i) + 0.5) / uP[0] + (n - 0.5) * uP[1] * 0.22;\n' +
+      '    v = max(v, max(0.0, 1.0 - abs(yy - c) / max(uP[2], 1e-4)));\n' +
+      '  }\n' +
+      '  v *= sat(1.0 - abs(uv.y - 0.5) * 1.3);\n' +
+      '  return sat(pow(sat(v), 1.0 / (0.5 + uP[5] * 3.0)));\n' +
+      '}',
+    laser: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[2]); vec2 d = uv - 0.5;\n' +
+      '  float v = -d.x * sin(a) + d.y * cos(a);\n' +
+      '  float u = d.x * cos(a) + d.y * sin(a);\n' +
+      '  if (uP[3] > 0.0) v += (fbmG(vec2(u * 4.0 + uTime * uP[4] * 2.0, 0.5), 8.0, 3.0, uSeed, 0.5) - 0.5) * uP[3] * 0.08;\n' +
+      '  float outv = max(max(0.0, 1.0 - abs(v) / max(uP[0], 1e-4)), uP[1] * max(0.0, 1.0 - abs(v) / max(uP[0] * 4.0, 1e-4)));\n' +
+      '  if (uP[5] > 0.0) outv *= mix(1.0, 0.5 + 0.5 * sin(u * 40.0 - uTime * TAU * 2.0), uP[5] * 0.6);\n' +
+      '  return sat(outv);\n' +
+      '}',
+    bricks: 'float gen(vec2 uv){\n' +
+      '  float rows = max(2.0, round(uP[0])), cols = max(1.0, round(rows / max(uP[1], 0.05)));\n' +
+      '  float gy = uv.y * rows, row = floor(gy), fy = gy - row;\n' +
+      '  float gx = uv.x * cols + mod(row, 2.0) * 0.5, col = floor(gx), fx = gx - col;\n' +
+      '  float e = min(min(fx, 1.0 - fx) / cols, min(fy, 1.0 - fy) / rows);\n' +
+      '  float v = sat((e - uP[2] / rows) / max(uP[4] / rows, 1e-5) + 0.5);\n' +
+      '  vec2 cg = uTiling > 0.5 ? mod(vec2(col, row), vec2(cols, rows)) : vec2(col, row);\n' +
+      '  return sat(v * mix(1.0, 0.55 + 0.45 * h2(cg, uSeed), uP[3]));\n' +
+      '}',
+    terrain: 'float gen(vec2 uv){\n' +
+      '  float n = fbmG(uv * uP[0], uP[0], uP[1], uSeed, 0.5);\n' +
+      '  float r = 1.0 - abs(n * 2.0 - 1.0);\n' +
+      '  float v = pow(sat(mix(n, r, uP[2])), uP[4]);\n' +
+      '  if (uP[3] > 0.0) v = mix(v, abs(fract(v * uP[3]) - 0.5) * 2.0, 0.35);\n' +
+      '  return sat(v);\n' +
+      '}',
+    wood: 'float gen(vec2 uv){\n' +
+      '  float n = fbmG(vec2(uv.x * 3.0, uv.y * 9.0), 3.0, 4.0, uSeed, 0.5);\n' +
+      '  float d = length(vec2((uv.x - 0.5) * 1.6, (uv.y - 0.5) * 0.5));\n' +
+      '  float v = pow(sat(0.5 + 0.5 * sin(d * uP[0] * TAU + n * uP[1] * 6.0)), 1.0 / uP[3]);\n' +
+      '  if (uP[2] > 0.0) v = mix(v, v * (0.7 + fbmG(vec2(uv.x * 6.0, uv.y * 40.0), 6.0, 3.0, uSeed + 5.0, 0.5) * 0.6), uP[2]);\n' +
+      '  return sat(v * 1.15);\n' +
+      '}',
+    glitch: 'float gen(vec2 uv){\n' +
+      '  float rows = max(4.0, round(uP[0]));\n' +
+      '  float seg = uP[4] > 0.0 ? floor(uTime * 10.0) : 0.0;\n' +
+      '  float ri = floor(uv.y * rows);\n' +
+      '  float h = h2(vec2(ri, seg), uSeed);\n' +
+      '  float sx = fract(uv.x + (h - 0.5) * uP[1]);\n' +
+      '  float v = fbmG(vec2(sx * uP[3], uv.y * uP[3]), uP[3], 4.0, uSeed, 0.5);\n' +
+      '  if (uP[2] > 0.0) v = mix(v, h2(vec2(floor(sx * 12.0), ri * 7.0 + seg), uSeed + 99.0), uP[2] * (h > 0.5 ? 1.0 : 0.4));\n' +
+      '  return sat(v);\n' +
+      '}',
+    halftone: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[1]);\n' +
+      '  vec2 c = vec2(uv.x * cos(a) + uv.y * sin(a), -uv.x * sin(a) + uv.y * cos(a)) * max(4.0, round(uP[0]));\n' +
+      '  vec2 ip = floor(c);\n' +
+      '  float tone = fbmG(uv * uP[2], uP[2], 4.0, uSeed, 0.5);\n' +
+      '  float r = uP[3] * 0.5 * (0.25 + tone * 1.1);\n' +
+      '  return sat(1.0 - (length(c - ip - 0.5) - r) / max(uP[4], 1e-4));\n' +
+      '}',
+    zigzag: 'float gen(vec2 uv){\n' +
+      '  float rows = max(2.0, round(uP[0]));\n' +
+      '  float gy = uv.y * rows, row = floor(gy), fy = gy - row;\n' +
+      '  float u = uv.x * max(2.0, round(uP[1])) + mod(row, 2.0) * uP[3] * 0.5;\n' +
+      '  float tri = 1.0 - abs(fract(u) * 2.0 - 1.0);\n' +
+      '  return sat(1.0 - abs(fy - (0.15 + tri * 0.7)) / max(uP[2], 1e-4));\n' +
+      '}',
+    gradient: 'float gen(vec2 uv){\n' +
+      '  float a = radians(uP[1]);\n' +
+      '  float v;\n' +
+      '  if (uP[0] < 0.5) v = uv.x * cos(a) + uv.y * sin(a);\n' +
+      '  else if (uP[0] < 1.5) v = length(uv - 0.5) * 2.0;\n' +
+      '  else v = (atan(uv.y - 0.5, uv.x - 0.5) + PI) / TAU;\n' +
+      '  v = sat((v - 0.5) / max(0.02, uP[2]) + 0.5);\n' +
+      '  return uP[3] > 0.5 ? 1.0 - v : v;\n' +
+      '}',
+    noiseGrain: 'float gen(vec2 uv){\n' +
+     '  vec2 q = floor(uv * max(2.0, uP[0] * 8.0));\n' +
+      '  float v = h2(q, uSeed);\n' +
+      '  return sat((v - 0.5) * uP[0] * 2.0 + 0.5 + uP[0]);\n' +
+      '}',
+};
 
 
   function glInit() {
