@@ -44,13 +44,29 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.3.0</h1>
-    <p class="upd-lead">贴图台补上 <strong>后处理 11 项</strong>（像素化 / 万花筒 / 漩涡 / 模糊 / 泛光 / 锐化 / 边缘检测 / 阶调化 / 暗角 / 扫描线 / 径向遮罩）和 <strong>四方连续开关</strong>，并正式改名为「贴图台」。</p>
+    <h1>v1.3.1</h1>
+    <p class="upd-lead">修掉两个用起来别扭的地方（调参数预览会缩小、切平铺会越切越小），参数面板改成分组折叠，噪波换成更平滑的 Perlin。</p>
+贴图台补上 <strong>后处理 11 项</strong>（像素化 / 万花筒 / 漩涡 / 模糊 / 泛光 / 锐化 / 边缘检测 / 阶调化 / 暗角 / 扫描线 / 径向遮罩）和 <strong>四方连续开关</strong>，并正式改名为「贴图台」。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.3.0</h2><span class="ws-dim">大更新</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.3.1</h2><span class="ws-dim">修手感</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：调参数时预览会莫名缩小一下</b><span>原因是每次重绘都重新测量舞台尺寸再算缩放，而参数面板重建那一瞬间的高度是变的，算出来的比例偏小、还不会自己恢复。现在改成<strong>只在容器真的换了尺寸时</strong>才重算，调滑块 / 开开关，预览尺寸纹丝不动（实测全程 392×392）。</span></li>
+        <li><b>修：来回切平铺尺寸，预览会一路变小</b><span>平铺变大 → 出现滚动条 → 量到的可用空间变小 → 再切回来就更小了（352 → 348 → 344）。现在量之前先把画布收起来，量到的是真正的可用空间。</span></li>
+        <li><b>改：参数面板拆成可折叠分组</b><span>以前生成器参数、变换、平铺、后处理 11 项、着色、合成、种子全堆在右栏，一屏看不完也找不到东西。现在分成 7 组、<strong>默认只展开「生成器参数」和「着色」</strong>，其余折起来（后处理那组会显示已经开了几项）。</span></li>
+        <li><b>换：噪波换成 Perlin 梯度噪波</b><span>原来是哈希值噪波，放大看有方格感。换成周期性 Perlin（五分平滑 + 梯度查表）之后明显更平滑、更像自然的云和烟；「分形噪波」和「云絮」还多了<strong>扭曲</strong>参数（域扭曲，出卷曲流动感）。顺带把渲染从 242ms 压回 65–81ms。</span></li>
+        <li><b>预览更大</b><span>舞台最小高度 320 → 440，同样是 512 的贴图，看得更清楚。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.3.0</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>v1.3.0 · 贴图台大改</h2><span class="ws-dim">大更新</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
         <li><b>后处理 11 项（新）</b><span>像素化 / 万花筒 / 漩涡 / 模糊 / 泛光 / 锐化 / 边缘检测 / 阶调化 / 暗角 / 扫描线 / 径向遮罩。每项可单独开关、单独调参，按「几何 → 卷积 → 调色」的顺序作用在<strong>形状做完之后</strong> —— 实测这一步对成图质量的影响比换生成器还大。</span></li>
