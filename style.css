@@ -854,3 +854,13 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 .site-foot a:hover{color:var(--brand)}
 .site-foot span{color:var(--line)}
 
+
+/* ════ 内嵌第三方工具页（lab.html）════ */
+.lab-main{max-width:1500px;margin:0 auto;padding:18px 20px 30px}
+.lab-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.lab-bar strong{font-size:15px;margin-right:8px}
+.lab-bar span{font-size:13px;line-height:1.7}
+.lab-embed{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.lab-embed iframe{display:block;width:100%;height:min(78vh,900px);border:0}
+.lab-fallback{padding:12px 16px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.8;color:var(--muted)}
+.lab-fallback p{margin:0 0 4px}
