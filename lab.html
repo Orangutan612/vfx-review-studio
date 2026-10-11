@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="内嵌的第三方贴图生成器（TextureCreate）入口。">
+<title>贴图工具 · 特效评审台</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<style>
+  html[data-theme="light"]{background:#f6f7f9;color-scheme:light}
+  html[data-theme="dark"]{background:#0d1117;color-scheme:dark}
+</style>
+<script>
+(function () {
+  var theme = null;
+  try { theme = localStorage.getItem("vfx-theme"); } catch (e) { theme = null; }
+  if (theme !== "dark" && theme !== "light") {
+    theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  document.documentElement.dataset.theme = theme;
+})();
+</script>
+<link rel="stylesheet" href="./style.css?v=1791741057538">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <img class="logo-mark" src="./logo.svg" width="34" height="34" alt="">
+    <span>贴图工具<span class="brand-sub">ASTERIUS · TEXTURE EXTERNAL</span></span>
+  </div>
+  <nav class="ws-nav" aria-label="站点导航">
+    <a href="./index.html">作品评审</a>
+    <a href="./workshop.html">贴图台</a>
+    <a href="./lab.html" aria-current="page">贴图工具</a>
+    <a href="./updates.html">更新说明</a>
+  </nav>
+  <div class="topbar-right">
+    <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
+  </div>
+</header>
+
+<main class="lab-main">
+  <div class="lab-bar">
+    <div>
+      <strong>TextureCreate</strong>
+      <span class="ws-dim">来自 gameanimation.info 的贴图生成器 —— 这里是以**内嵌**方式引用它，代码和内容都是他们的。</span>
+    </div>
+    <a class="button secondary small" href="https://gameanimation.info/texture-create/" target="_blank" rel="noopener noreferrer">在新窗口打开 ↗</a>
+  </div>
+
+  <div class="lab-embed">
+    <iframe
+      src="https://gameanimation.info/texture-create/"
+      title="TextureCreate"
+      referrerpolicy="no-referrer-when-downgrade"
+      allow="clipboard-write; fullscreen"
+      loading="eager"></iframe>
+    <div class="lab-fallback">
+      <p><b>如果上面这块是空的</b>，说明对方不允许被内嵌，或者这个网络访问不到它（国内直连通常需要代理）。</p>
+      <p>点右上角「在新窗口打开 ↗」直接用；本机的「<a href="./workshop.html">贴图台</a>」是离线的备用方案，不联网也能用。</p>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <a href="./index.html">作品评审</a>
+  <span>·</span>
+  <a href="./workshop.html">贴图台（本机离线版）</a>
+  <span>·</span>
+  <a href="./updates.html">更新说明</a>
+</footer>
+
+<script>
+(function () {
+  var btn = document.getElementById('theme-toggle');
+  function sync() { btn.textContent = document.documentElement.dataset.theme === 'dark' ? '白天' : '夜间'; }
+  sync();
+  btn.addEventListener('click', function () {
+    var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('vfx-theme', next); } catch (e) {}
+    sync();
+  });
+})();
+</script>
+</body>
+</html>
