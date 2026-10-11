@@ -639,7 +639,7 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 }
 .ws-stage{
   position:relative;display:flex;align-items:center;justify-content:center;
-  padding:22px;background:var(--surface);min-height:320px;
+  padding:22px;background:var(--surface);min-height:440px;
   background-image:
     linear-gradient(45deg,var(--line-soft) 25%,transparent 25%,transparent 75%,var(--line-soft) 75%),
     linear-gradient(45deg,var(--line-soft) 25%,transparent 25%,transparent 75%,var(--line-soft) 75%);
@@ -699,6 +699,16 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 .ws-fx-head input{width:15px;height:15px;accent-color:var(--brand);flex:none}
 .ws-fx-head span{font-weight:600;color:var(--ink-soft)}
 .ws-fx-head.is-on span{color:var(--ink)}
+.ws-group{border-top:1px solid var(--line-soft)}
+.ws-group:first-child{border-top:0}
+.ws-group-head{
+  display:flex;align-items:center;gap:8px;width:100%;padding:11px 0;
+  background:none;border:0;cursor:pointer;text-align:left;
+  font-size:13.5px;font-weight:700;color:var(--ink);font-family:inherit;
+}
+.ws-group-head:hover{color:var(--brand)}
+.ws-group-arrow{width:12px;color:var(--muted);font-size:11px;flex:none}
+.ws-group-body{padding:1px 0 11px}
 .ws-param-group{margin:18px 0 8px;font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
 .ws-param-group:first-child{margin-top:0}
 .ws-check{display:flex;align-items:center;gap:9px;padding:11px 0;font-size:13px;color:var(--ink-soft);cursor:pointer;border-bottom:1px solid var(--line-soft)}
