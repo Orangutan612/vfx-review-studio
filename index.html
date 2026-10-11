@@ -31,9 +31,9 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791743271899">
+<link rel="stylesheet" href="./style.css?v=1791744059936">
 <!-- 逐帧解码依赖 mp4box 解封装；这是经典脚本，必须在模块脚本之前加载。 -->
-<script src="./vendor/mp4box/mp4box.all.min.js?v=1791743271899"></script>
+<script src="./vendor/mp4box/mp4box.all.min.js?v=1791744059936"></script>
 </head>
 <body>
 
@@ -332,7 +332,7 @@
 //   链接版 —— 没有任何服务端，本页把 /api/* 全部接管
 // 判断方式很直接：能连上 /api/health 就是本地版。
 // 必须赶在 app.js 之前装上拦截，否则它第一轮请求就打到空处了。
-import { detectMode, installStaticBackend, watchForUpdates, stampAssetVersions } from "./core/bridge.mjs?v=1791743271899";
+import { detectMode, installStaticBackend, watchForUpdates, stampAssetVersions } from "./core/bridge.mjs?v=1791744059936";
 
 // GitHub Pages 有 10 分钟缓存，图标又是单独一套缓存 —— 打上版本号才不会「部署了却没变」
 stampAssetVersions();
@@ -363,7 +363,7 @@ watchForUpdates(() => {
 });
 
 try {
-  await import("./app.js?v=1791743271899");
+  await import("./app.js?v=1791744059936");
 } catch (error) {
   document.body.insertAdjacentHTML("afterbegin",
     '<div style="margin:16px;padding:14px 18px;border-radius:12px;background:#fef3f2;border:1px solid #fda29b;color:#b42318;font-size:14px">'
