@@ -1170,6 +1170,70 @@
     } catch (e) { return false; }
   }
 
+  /* ───────────────────────────── 无缝化 ─────────────────────────────
+     为什么这样算：把画面和它的**四向镜像**（左右、上下、对角）做加权平均之后，
+     out(0,y) 与 out(w-1,y) 是同一个平均值 —— 也就是说平铺时左右/上下边界**在数学上完全相等**，
+     接缝为 0（不是「看起来好一点」，是可测的 0 差）。
+     代价：结果是四向对称的，细节会软一点，所以给了强度（amount）；amount<1 时接缝按 (1-amount) 残留。
+     原站这一步是送去后台生图 API 重画的，我们这里没有服务端，所以换成本地算法。 */
+  /** 纯函数：只吃 Uint8ClampedArray，不碰 canvas —— 自检能直接对它验数学 */
+  function seamlessPixels(src, size, amount) {
+    var out = new Uint8ClampedArray(src.length);
+    var a = clamp(amount, 0, 1), ia = 1 - a;
+    for (var y = 0; y < size; y++) {
+      var ym = size - 1 - y;
+      for (var x = 0; x < size; x++) {
+        var xm = size - 1 - x;
+        var i00 = (y * size + x) * 4, i10 = (y * size + xm) * 4, i01 = (ym * size + x) * 4, i11 = (ym * size + xm) * 4;
+        for (var c = 0; c < 4; c++) {
+          var m = (src[i00 + c] + src[i10 + c] + src[i01 + c] + src[i11 + c]) * 0.25;
+          out[i00 + c] = src[i00 + c] * ia + m * a;
+        }
+      }
+    }
+    return out;
+  }
+  function makeSeamlessImage(amount) {
+    var size = doc.size;
+    var src0 = renderDoc(tNow);
+    var tmp = document.createElement('canvas'); tmp.width = tmp.height = size;
+    var tc = tmp.getContext('2d'); tc.drawImage(src0, 0, 0);
+    var src = tc.getImageData(0, 0, size, size).data;
+    var out = seamlessPixels(src, size, amount);
+    var c2 = document.createElement('canvas'); c2.width = c2.height = size;
+    c2.getContext('2d').putImageData(new ImageData(out, size, size), 0, 0);
+    return c2;
+  }
+  /** 把接缝误差量出来（左右列 + 上下行），无缝化前后各测一次就是验收依据 */
+  function seamError(size, data) {
+    var sum = 0, n = 0;
+    for (var y = 0; y < size; y++) {
+      var l = (y * size) * 4, r = (y * size + size - 1) * 4;
+      for (var c = 0; c < 3; c++) { sum += Math.abs(data[l + c] - data[r + c]); n++; }
+    }
+    for (var x = 0; x < size; x++) {
+      var t = x * 4, b = ((size - 1) * size + x) * 4;
+      for (var c2 = 0; c2 < 3; c2++) { sum += Math.abs(data[t + c2] - data[b + c2]); n++; }
+    }
+    return sum / n;
+  }
+  function applySeamless(amount) {
+    var a = amount === undefined ? 0.75 : amount;
+    var size = doc.size;
+    var canvas = makeSeamlessImage(a);
+    snapshot();
+    var l = newLayer('fbm');
+    l.type = '__image'; l.name = '无缝化 ' + Math.round(a * 100) + '%';
+    l.color = { mode: 'gray', ramp: '火焰', solid: '#ff8932' };
+    l.image = canvas.toDataURL('image/png');
+    l._img = new Image(); l._img.src = l.image;
+    l.params = { imgScale: 1 };
+    doc.layers.push(l);
+    selId = l.id;
+    rebuildAll();
+    toast('已生成无缝图层（平铺 3×3 看看）');
+  }
+
   /* ───────────────────────────── 导入图片 ───────────────────────────── */
   function importImage(file) {
     if (!file) return;
@@ -1246,6 +1310,13 @@
     $('ws-play').addEventListener('click', togglePlay);
     $('ws-time').addEventListener('input', function (e) { tNow = +e.target.value; $('ws-tval').textContent = 't = ' + tNow.toFixed(2) + ' s'; draw(); });
     $('ws-copy').addEventListener('click', copyToClipboard);
+    $('ws-seamless').addEventListener('click', function () {
+      var v = prompt('无缝化强度（0–1，越大越无缝但细节越软）：', '0.75');
+      if (v === null) return;
+      var n2 = parseFloat(v);
+      if (!isFinite(n2)) { toast('请输入 0–1 的数字'); return; }
+      applySeamless(clamp(n2, 0, 1));
+    });
     $('ws-export').addEventListener('click', function () { buildExportDialog(); $('ws-export-dialog').showModal(); });
     $('ws-help').addEventListener('click', function () { $('ws-help-dialog').showModal(); });
     $('ws-pack-go').addEventListener('click', function () { exportPack({ R: packMap.R, G: packMap.G, B: packMap.B, A: packMap.A }); $('ws-pack-dialog').close(); });
@@ -1312,6 +1383,18 @@
       doc.layers = d.layers; selId = doc.layers[0].id; rebuildAll(); return true;
     },
     exportPNG: exportPNG, exportNormal: exportNormal, exportPack: exportPack, encodePNG: encodePNG,
+    applySeamless: applySeamless, seamlessPixels: seamlessPixels,
+    /** 量接缝误差：返回 {before, after} —— 自检/验证用，无缝化到底有没有效看这个 */
+    seamCheck: function (amount) {
+      var size = doc.size;
+      var src0 = renderDoc(tNow);
+      var t1 = document.createElement('canvas'); t1.width = t1.height = size;
+      var c1 = t1.getContext('2d'); c1.drawImage(src0, 0, 0);
+      var before = seamError(size, c1.getImageData(0, 0, size, size).data);
+      var sc = makeSeamlessImage(amount === undefined ? 1 : amount);
+      var after = seamError(size, sc.getContext('2d').getImageData(0, 0, size, size).data);
+      return { before: before, after: after, size: size };
+    },
     pack: function (map) { exportPack(map); }
   };
 })();
