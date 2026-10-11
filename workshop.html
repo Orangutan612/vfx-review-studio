@@ -22,7 +22,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791741057538">
+<link rel="stylesheet" href="./style.css?v=1791742310163">
 </head>
 <body class="ws-body">
 
@@ -32,9 +32,11 @@
     <span>贴图台<span class="brand-sub">ASTERIUS · TEXTURE STUDIO</span></span>
   </div>
 
-  <nav class="ws-nav" aria-label="站点导航">
-    <a href="./index.html">作品评审</a>
-    <a href="./workshop.html" aria-current="page">贴图台</a>
+  <nav class="app-switch" aria-label="工具切换">
+    <a href="./index.html" class="app-switch-item">作品评审</a>
+    <a href="./workshop.html" class="app-switch-item is-active" aria-current="page">贴图台</a>
+    <a href="./lab.html" class="app-switch-item">贴图工具</a>
+    <a href="./updates.html" class="app-switch-item">更新说明</a>
   </nav>
 
   <div class="topbar-right">
@@ -117,65 +119,66 @@
           <span class="ws-dim" id="ws-perf">—</span>
         </div>
       </div>
-    </section>
-
-    <!-- ── 右：图层 + 参数 + 文档 ── -->
-    <aside class="ws-col ws-col-side">
-      <div class="ws-card">
-        <div class="ws-card-head">
-          <h2>图层</h2>
-          <span class="ws-head-actions">
-            <button id="ws-import" class="text-button" type="button">导入贴图</button>
-            <button id="ws-add" class="text-button" type="button">＋ 新建</button>
-          </span>
+    <!-- ── 舞台下方：图层 / 参数 / 文档（把原来堆在右侧的东西放下来，填满预览窗下面的空白）── -->
+    <div class="ws-under">
+      <div class="ws-under-col">
+        <div class="ws-card">
+          <div class="ws-card-head">
+            <h2>图层</h2>
+            <div class="ws-head-acts">
+              <button id="ws-import" class="button secondary small" type="button">导入贴图</button>
+              <button id="ws-add" class="button secondary small" type="button">＋ 新建</button>
+            </div>
+          </div>
+          <div class="ws-card-body">
+            <ul id="ws-layers" class="ws-layers"></ul>
+          </div>
         </div>
-        <ul class="ws-layers" id="ws-layers"></ul>
-        <input id="ws-file-image" type="file" accept="image/png,image/jpeg,image/webp" hidden>
-        <input id="ws-file-doc" type="file" accept="application/json,.json" hidden>
       </div>
-
-      <div class="ws-card">
-        <div class="ws-card-head">
-          <h2>图层参数</h2>
-          <button id="ws-reset-layer" class="text-button" type="button">重置本层</button>
+      <div class="ws-under-col">
+        <div class="ws-card">
+          <div class="ws-card-head">
+            <h2>图层参数</h2>
+            <button id="ws-reset-layer" class="button secondary small" type="button">重置本层</button>
+          </div>
+          <div class="ws-card-body" id="ws-params"></div>
         </div>
-        <div class="ws-card-body" id="ws-params"></div>
       </div>
-
-      <div class="ws-card">
-        <div class="ws-card-head"><h2>文档</h2></div>
-        <div class="ws-card-body">
-          <div class="ws-field">
+      <div class="ws-under-col">
+        <div class="ws-card">
+          <div class="ws-card-head"><h2>文档</h2></div>
+          <div class="ws-card-body">
             <label for="ws-size">画布尺寸</label>
             <select id="ws-size">
               <option value="256">256 × 256</option>
               <option value="512" selected>512 × 512</option>
               <option value="1024">1024 × 1024</option>
             </select>
+            <label class="ws-check" style="margin-top:6px">
+              <input id="ws-flatten" type="checkbox">
+              <span>导出时压成黑底（不保留透明）</span>
+            </label>
+            <p class="ws-note">图层和参数会存进文档里，能存成文件、也能进分享链接。</p>
+            <div class="ws-doc-acts">
+              <button id="ws-save" class="button secondary small" type="button">存文件</button>
+              <button id="ws-load" class="button secondary small" type="button">读文件</button>
+              <button id="ws-share" class="button secondary small" type="button">分享链接</button>
+            </div>
           </div>
-          <label class="ws-check" style="margin-top:6px">
-      <input id="ws-flatten" type="checkbox">
-      <span>导出时压成黑底（不保留透明）</span>
-    </label>
-    <p class="ws-note">图层和参数会存进文档里，能存成文件、也能进分享链接。</p>
-          <div class="ws-btn-row">
-            <button id="ws-save" class="button secondary small" type="button">存文件</button>
-            <button id="ws-load" class="button secondary small" type="button">读文件</button>
-            <button id="ws-share" class="button secondary small" type="button">分享链接</button>
+        </div>
+        <div class="ws-card">
+          <div class="ws-card-head"><h2>我的预设</h2></div>
+          <div class="ws-card-body">
+            <div id="ws-preset-list" class="ws-preset-list"></div>
+            <button id="ws-preset-save" class="button secondary small" type="button" style="margin-top:9px">把当前这套存成预设</button>
+            <p class="ws-note">存在这台电脑的浏览器里，不会上传。</p>
           </div>
         </div>
       </div>
-    
-<div class="ws-card">
-  <div class="ws-card-head"><h2>我的预设</h2></div>
-  <div class="ws-card-body">
-    <div id="ws-preset-list" class="ws-preset-list"></div>
-    <button id="ws-preset-save" class="button secondary small" type="button" style="margin-top:9px">把当前这套存成预设</button>
-    <p class="ws-note">存在这台电脑的浏览器里，不会上传。</p>
-  </div>
-</div>
-
-</aside>
+    </div>
+    <input id="ws-file-image" class="ws-hidden-file" type="file" accept="image/*">
+    <input id="ws-file-doc" class="ws-hidden-file" type="file" accept="application/json,.json">
+  </section>
   </div>
 </main>
 
@@ -340,14 +343,12 @@
 </dialog>
 
 <footer class="site-foot">
-  <a href="./index.html">作品评审</a>
-  <span>·</span>
-  <a href="./updates.html">更新说明</a>
-    <a href="./lab.html">贴图工具</a>
-  <span>·</span>
-  <span>贴图全部在本机生成，不上传</span>
+  <div class="site-foot-links">
+    <a href="./index.html">作品评审</a><span>·</span><a href="./workshop.html">贴图台</a><span>·</span><a href="./lab.html">贴图工具</a><span>·</span><a href="./updates.html">更新说明</a>
+  </div>
+  <p class="site-foot-safe"><b>安全性</b>：作品视频与参考素材<strong>从不离开本机</strong>；API Key 只存在你的浏览器里、只发给你自己选的模型服务；本站<strong>没有服务器</strong>，不代存也不转发任何内容。贴图工具页是<strong>内嵌的第三方站点</strong>，内容属于原作者。</p>
 </footer>
 
-<script src="./workshop.js?v=1791741057538" defer></script>
+<script src="./workshop.js?v=1791742310163" defer></script>
 </body>
 </html>
