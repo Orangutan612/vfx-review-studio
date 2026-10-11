@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+<script src="./frame-guard.js?v=1791745037458"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>核心模块自检 · 特效评审台</title>
@@ -42,7 +43,7 @@ pre{margin:0;padding:16px;background:#0f1216;color:#d7e0ea;border-radius:10px;fo
     document.getElementById("summary").style.color = "#b42318";
   }
 </script>
-<script src="./vendor/mp4box/mp4box.all.min.js?v=1791744059936"></script>
+<script src="./vendor/mp4box/mp4box.all.min.js?v=1791745037458"></script>
 <script type="module">
 if (location.protocol === "file:") { /* 已经给过提示了，这里不再跑 */ } else {
 const lines = [], results = [];
@@ -50,19 +51,19 @@ const ok = (name, pass, detail) => { results.push(Boolean(pass)); lines.push((pa
 // 每个检查各自兜错：一条出问题不该把后面全部带崩（诊断页最怕这个）。
 const step = (name, fn) => { try { fn(); } catch (e) { ok(name, false, (e && e.message) || String(e)); } };
 try {
-  const cfg = await import("./core/config.mjs?v=1791744059936");
+  const cfg = await import("./core/config.mjs?v=1791745037458");
   ok("加载 /core/config.mjs（浏览器版）", true, cfg.ENV_PATH);
   ok("默认模型可用", cfg.config.model === "deepseek-flash", cfg.config.model);
-  const llm = await import("./core/llm.mjs?v=1791744059936");
+  const llm = await import("./core/llm.mjs?v=1791745037458");
   ok("加载 /core/llm.mjs（直接取自 server/）", typeof llm.chat === "function");
   const fence = String.fromCharCode(96).repeat(3);
   const messy = "好的，结果如下：" + fence + "json" + "\n" + String.fromCharCode(123) + "\"a\": 1" + String.fromCharCode(125) + "\n" + fence + " 完毕";
   let parsed = null;
   try { parsed = llm.parseJsonLoose(messy); } catch (e) { parsed = null; }
   ok("解析器能从寒暄和代码块里抠出 JSON", parsed && parsed.a === 1, JSON.stringify(parsed));
-  const providers = await import("./core/providers.mjs?v=1791744059936");
+  const providers = await import("./core/providers.mjs?v=1791745037458");
   ok("加载 /core/providers.mjs", providers.PROVIDERS.length >= 5, providers.PROVIDERS.length + " 家服务商");
-  const review = await import("./core/review.mjs?v=1791744059936");
+  const review = await import("./core/review.mjs?v=1791745037458");
   ok("加载 /core/review.mjs（直接取自 server/）", true);
   ok("评审准则 8 个维度", review.RUBRIC.length === 8, String(review.RUBRIC.length));
   ok("建议条数档位正确", review.FEEDBACK_COUNTS.medium === 6);
@@ -73,11 +74,11 @@ try {
   ok("归一化：准则维度补齐到 8", shaped.rubric.length === 8);
   ok("归一化：总分由程序算（4 分 -> 40）", shaped.score.total === 40, String(shaped.score.total));
   ok("归一化：建议保留", shaped.suggestions.length === 1);
-  const doc = await import("./report-document.js?v=1791744059936");
+  const doc = await import("./report-document.js?v=1791745037458");
   const html = doc.renderReport(shaped, [], { interactive: false, series: [], meta: { file: "x.mp4" } });
   ok("报告能渲染出评分板块", html.indexOf("report-score") >= 0);
   ok("报告能渲染出准则表", html.indexOf("评审准则核对") >= 0);
-  const frame = await import("./frame-sequence.js?v=1791744059936");
+  const frame = await import("./frame-sequence.js?v=1791745037458");
   ok("加载 /frame-sequence.js", typeof frame.decodeSequence === "function");
   ok("WebCodecs 可用（逐帧解码的前提）", typeof window.VideoDecoder === "function");
   ok("mp4box 已就绪", Boolean(window.MP4Box && window.MP4Box.createFile));
