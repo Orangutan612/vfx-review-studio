@@ -21,7 +21,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./style.css?v=1791739811501">
 </head>
 <body>
 
@@ -44,14 +44,28 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.3.2</h1>
-    <p class="upd-lead">重做「光」这一族的内核（星芒 / 闪光改成真正的细射线）、形状类统一平滑边缘、色阶做成看得见的大色条。</p>
+    <h1>v1.4.0</h1>
+    <p class="upd-lead">贴图台接上 <strong>GPU（WebGL2 片元着色器）</strong>：一个 512² 图层的渲染从 25–80ms 降到 <strong>4ms</strong>；顺带修掉「部署了新版本却看不到」的缓存问题。</p>
 贴图台补上 <strong>后处理 11 项</strong>（像素化 / 万花筒 / 漩涡 / 模糊 / 泛光 / 锐化 / 边缘检测 / 阶调化 / 暗角 / 扫描线 / 径向遮罩）和 <strong>四方连续开关</strong>，并正式改名为「贴图台」。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.3.2</h2><span class="ws-dim">手感与质感</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.4.0</h2><span class="ws-dim">换渲染内核</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>接上 GPU 渲染（WebGL2 片元着色器）</b><span>先把「光 + 几何」这一族 8 个类型（星芒 / 闪光 / 辉光 / 耀斑 / 眩光 / 花瓣 / 多边形 / 星形）搬进片元着色器。<strong>一个 512² 图层从 25–80ms 降到 4ms</strong> —— 拖滑杆不再卡顿，这才是"顺手"的关键。架构上只把「算灰度场」搬到 GPU，上色 / 后处理 / 图层 / 导出全部沿用原管线；<strong>没移植的类型自动回落 CPU</strong>，不会因为 GPU 挂了就整个不能用。</span></li>
+        <li><b>验证方式</b><span>同一张图，GPU 与 CPU 两条路各算一遍逐像素比：差异 <strong>0.4%–2%</strong>（星芒 0.021、闪光 0.006、辉光 0.012、花瓣 0.018）—— 说明着色器确实复现了原来的画面，不是"另画了一个"。</span></li>
+        <li><b>修：部署了新版本却看不到</b><span>GitHub Pages 对静态资源带缓存，HTML 里的 script/link 没有版本号，浏览器就一直吃旧文件。现在<strong>部署时自动给所有资源加上当次的版本号</strong>，每次部署必定生效。</span></li>
+        <li><b>后续</b><span>剩下 46 个类型按同一套模板继续搬（每个类型一段 GLSL 主体 + 一句参数映射）。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.3.2</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>v1.3.2 · 光的内核与色阶</h2><span class="ws-dim">手感与质感</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
         <li><b>重做「光」这一族的内核</b><span>以前「星芒」「闪光」用的是花瓣曲线（|cos|ⁿ），出来是<strong>胖乎乎的圆瓣</strong>，看着像卡通花不像光。现在改成<strong>高斯角向的细射线 + 沿半径的长柔尾 + 高斯亮核</strong>：12 条细射线、每条长短不一、尾巴长长地淡出去 —— 这才是光。自检里专门加了两条盯它（圆周上能数出 12 个峰、大部分角度是暗的），胖花瓣会直接被红灯抓住。</span></li>
