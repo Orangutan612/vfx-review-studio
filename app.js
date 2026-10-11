@@ -11,6 +11,11 @@ import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitma
 import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js';
 
 const $ = id => document.getElementById(id);
+
+// 链接版没有本地服务、没有 reference 文件夹、也没有启动窗口 ——
+// 凡是提到这些的文案，都要按模式分开写，否则链接版会说一些根本不存在的事。
+const LINK_MODE = document.documentElement.dataset.mode === 'static';
+const byMode = (localText, linkText) => (LINK_MODE ? linkText : localText);
 const video = $('video');
 
 const LEVELS = [
@@ -538,7 +543,11 @@ async function checkHealth() {
   } catch {
     el.className = 'health bad';
     el.textContent = '连不上本地服务';
-    showSetupBanner('连不上本地服务', '请确认那个黑色启动窗口还开着。如果已经关掉了，重新双击「启动.cmd」即可。', false);
+    showSetupBanner(
+    byMode('连不上本地服务', '页面没能正常启动'),
+    byMode('请确认那个黑色启动窗口还开着。如果已经关掉了，重新双击「启动.cmd」即可。', '刷新一下页面试试。如果还是这样，清空本站数据后重新打开。'),
+    false,
+  );
     return;
   }
   state.health = data;
@@ -586,7 +595,10 @@ function renderReferences() {
   if (!referenceFiles.length) {
     const empty = document.createElement('p');
     empty.className = 'help';
-    empty.textContent = '参考库还是空的。点右上角「添加参考视频」，或者直接把文件丢进项目的 reference 文件夹。';
+    empty.textContent = byMode(
+    '参考库还是空的。可以拖文件进来，或者直接把文件丢进项目的 reference 文件夹。',
+    '参考库还是空的。点右上角「＋ 本地上传」从电脑里选文件（视频或图片都行）。',
+  );
     list.appendChild(empty);
     return;
   }
@@ -1347,7 +1359,7 @@ async function loadSetup() {
     $('setup-key').value = '';
     applyProvider(current, true);
   } catch {
-    $('setup-provider-note').textContent = '读取配置失败，请确认启动窗口还开着。';
+    $('setup-provider-note').textContent = byMode('读取配置失败，请确认启动窗口还开着。', '读取配置失败，刷新页面重试一下。');
   }
 }
 
@@ -1510,7 +1522,10 @@ $('version-badge').addEventListener('click', async () => {
       const lines = [
         '有新版本：' + data.latest + '（你当前是 ' + data.version + '）',
         '',
-        '更新时请保留 .env（你的 API Key）和 reference（你的参考素材），只替换代码文件。',
+        byMode(
+      '更新时请保留 .env（你的 API Key）和 reference（你的参考素材），只替换代码文件。',
+      '更新会自动生效：作者发布新版本后，页面底部会弹出提示，点一下刷新即可。',
+    ),
         '',
         '要打开下载页面吗？',
       ];
