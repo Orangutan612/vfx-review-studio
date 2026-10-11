@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791746892789"></script>
-<script src="./update-check.js?v=1791746892789"></script>
+<script src="./frame-guard.js?v=1791747172816"></script>
+<script src="./update-check.js?v=1791747172816"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="特效评审台更新说明：新增贴图台、站点标识重做、自检扩容。">
+<meta name="description" content="特效评审台更新说明：每个版本改了什么。">
 <title>更新说明 · 特效评审台</title>
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <!-- 主题在样式表之前同步定下来（和首页同一套逻辑、同一个 key），否则会先白一瞬 -->
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791746892789">
+<link rel="stylesheet" href="./style.css?v=1791747172816">
 </head>
 <body>
 
@@ -56,38 +56,25 @@
     <div class="ws-card-head"><h2>本次 · v1.4.3</h2><span class="ws-dim">旧页面自曝</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
-        <li><b>修：「上传了但页面没变」</b><span>这不是没传上去，是<b>浏览器把 HTML 也缓存了</b> —— 之前部署脚本只给 JS / CSS 打了版本号，管不到 HTML 本身。现在每个页面都带一个<b>自曝</b>：拿自己身上的构建号和线上 <code>version.json</code>（强制不走缓存地取）比一比，落后就在页面底部弹一条「你看的是旧版页面 —— 线上已经有 v…」并给一键刷新。以后再遇上"怎么没变"，页面自己会告诉你，不用猜。</span></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>v1.4.2</h2><span class="ws-dim">安全加固</span></div>
-    <div class="ws-card-body">
-      <ul class="upd-list">
-        <li><b>把安全变成"每次都会被验证"（新）</b><span>审计了一遍真实风险，并加了 3 条永久自检：<b>报告里的模型输出必须被转义</b>（喂一段 <code>&lt;img onerror=...&gt;</code> 验证）、<b>部署目录里不许出现任何外部脚本 / 样式</b>（供应链风险归零）、<b>评审链路不许接触 API Key</b>（Key 只进 LLM 客户端）。</span></li>
-        <li><b>README 加了「安全」章节，附两步验证的具体点法</b><span>把所有风险与对策列成表（零外链 · 全部转义 · Key 的边界），写明<b>需要你自己做的</b>：给 GitHub 账号开两步验证、不加陌生协作者、部署前看一眼改动。附录里给了两步验证的<strong>逐步点法</strong>与"恢复码一定要单独存"的提醒。也写明了<b>做不到的</b>：GitHub Pages 不让设响应头，HSTS / CSP 由不了我们 —— 路线是"把能攻击的面收窄"，不是假装设了头。</span></li>
+        <li><b>修：偶尔会看到旧页面</b><span>部署之后有时打开还是旧内容（浏览器把网页本身缓存了）。现在页面会自己发现这种情况，并在底部提示你刷新 —— 点一下就好，不用再猜"到底传上去没有"。</span></li>
       </ul>
     </div>
   </section>
 
   
-
   <h2 class="upd-sep">上一版 · v1.4.0</h2>
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>v1.4.0</h2><span class="ws-dim">换渲染内核</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
-        <li><b>接上 GPU 渲染（WebGL2 片元着色器）</b><span>把渲染从 CPU 搬到 <strong>GPU（WebGL2 片元着色器）</strong>。一个 512² 图层从 <strong>25–80ms 降到 4ms</strong> —— 拖滑杆不再卡顿，这才是"顺手"的关键。架构上只把「算灰度场」搬到 GPU，上色 / 后处理 / 图层 / 导出全部沿用原管线；<strong>WebGL 不可用时自动回落 CPU</strong>，不会因为 GPU 挂了就整个不能用。这一版最终把 <strong>54 个生成器全部搬上了 GPU</strong>（见下方）。</span></li>
-        <li><b>验证方式</b><span>同一张图，GPU 与 CPU 两条路各算一遍逐像素比：差异 <strong>0.4%–2%</strong>（星芒 0.021、闪光 0.006、辉光 0.012、花瓣 0.018）—— 说明着色器确实复现了原来的画面，不是"另画了一个"。</span></li>
-        <li><b>修：部署了新版本却看不到</b><span>GitHub Pages 对静态资源带缓存，HTML 里的 script/link 没有版本号，浏览器就一直吃旧文件。现在<strong>部署时自动给所有资源加上当次的版本号</strong>，每次部署必定生效。</span></li>
-        <li><b>按"联络表"逐个修手感和剪贴画感</b><span>把 54 个生成器全部铺成一张联络表逐个看，抓出并修掉：<strong>边缘被切平</strong>（14 个"画面里放元素"的类型现在会在贴边前淡出，融球/散景/神光不再糊在边上）、散景光斑跑到框外的放置 bug、多边形/星形/十字/月牙的<strong>纯白硬边剪贴画感</strong>（加了内部明暗，有体积了）、融球和散景默认太大糊成一坨。</span></li>
+        <li><b>接上 GPU 渲染（WebGL2 片元着色器）</b><span>把渲染从 CPU 搬到 <strong>GPU（WebGL2 片元着色器）</strong>。一个 512² 图层从 <strong>25–80ms 降到 4ms</strong> —— 拖滑杆不再卡顿，这才是"顺手"的关键。拖滑杆不再卡顿。这一版最终把 <strong>54 个生成器全部搬上了 GPU</strong>（见下方）。</span></li>
+        <li><b>修掉一批贴图的问题</b><span>逐个看过去，抓出并修掉：<strong>边缘被切平</strong>（14 个"画面里放元素"的类型现在会在贴边前淡出，融球/散景/神光不再糊在边上）、散景光斑跑到框外的放置 bug、多边形/星形/十字/月牙的<strong>纯白硬边剪贴画感</strong>（加了内部明暗，有体积了）、融球和散景默认太大糊成一坨。</span></li>
         <li><b>用 SDF 图元重做 6 个最难看的（GPU）</b><span>建了一套 GLSL 图元库（<code>cov</code> 抗锯齿、<code>smin</code> 平滑并集、<code>sdSeg</code> 线段距离、<code>gauss</code>），并用它重写了融球 / 散景 / 火花 / 细胞 / 十字 / 月牙 —— 融球现在是独立柔边球体、散景是有边框的圆盘、火花是带拖尾的胶囊、细胞有明暗分块。GPU 类型从 8 个增到 <strong>14 个</strong>。</span></li>
         <li><b>第二批 6 个也重做了（GPU）</b><span>神光（从画面上方洒下的宽柔光柱）· 矩阵（真正下落的数字雨，带拖尾和亮头）· 水晶（有棱面明暗的晶格）· 编织（一横一竖交织的线）· 马赛克（带斜边和间隙的砖块）· 做旧（多层污渍而不是细麻点）。<strong>GPU 类型 14 → 20 个</strong>。</span></li>
         <li><b>归属声明写清楚 + 仓库简介改准</b><span>内嵌来源补上国内可直连的「贴图工坊」(vfxmento.xyz)，并在 README 里写明：两个页面都只是 <code>iframe</code> <strong>引用原站</strong>，代码与内容属于原作者，本站<strong>不复制、不改写、不再分发</strong>，<strong>原作者要求即可移除</strong>。另外 GitHub 仓库简介原写「自带 API Key」容易被误解成"点进网页就有 key 用"，已改成「用你自己的模型 API Key，站点不提供」。</span></li>
         <li><b>贴图工具页只保留一个来源</b><span>一度加过国内可直连的「贴图工坊」(vfxmento.xyz)，但实测它<b>拒绝被内嵌</b>（iframe 里显示「拒绝连接」，站点本身是活的，是不允许被别的网页嵌）。既然用不了就<b>下掉</b>了，README 与说明里也一并删掉。现在只保留 gameanimation 的 TextureCreate，并把「拒绝连接」的成因写进了兜底提示。</span></li>
-        <li><b>修：缩略图和实际预览「不是一张脸」</b><span>根因有两条：① 左栏缩略图走的是 <b>CPU</b> 函数，舞台走的是 <b>GPU 着色器</b>，两条路算的不是一个东西；② 我 GLSL 里的哈希是自己写的浮点版，和 CPU 那套 <b>32 位整数位运算哈希</b>结构不同，所以 GPU 出来的噪波偏"糊"。现在<b>缩略图和舞台走同一条渲染路径</b>，并且把 CPU 的哈希/梯度表<b>逐位等价地移植进着色器</b>—— 实测两边像素差 1.5%（纯 8 位量化误差）。</span></li>
+        <li><b>修：缩略图和实际预览「不是一张脸」</b><span>根因有两条：① 左栏缩略图走的是 <b>CPU</b> 函数，舞台走的是 <b>GPU 着色器</b>，两条路算的不是一个东西；② 我 GLSL 里的哈希是自己写的浮点版，和 CPU 那套 <b>32 位整数位运算哈希</b>结构不同，所以 GPU 出来的噪波偏"糊"。现在<b>缩略图和舞台走同一条渲染路径</b>，并且把 CPU 的哈希/梯度表<b>逐位等价地移植进着色器</b>—— </span></li>
         <li><b>54 个生成器全部上了 GPU</b><span>把剩下 30 个（噪波族 / 图案族 / 自然现象族）一次性全搬到片元着色器，<strong>现在每一个类型都跑 GPU</strong>，拖滑杆基本不掉帧。做法是把它们的参数和算法逐个对照着转 —— 不是重画，是同一套数学换到 GPU 上算。</span></li>
         <li><b>第三批 4 个也重做了（GPU）</b><span>闪电（真正的分叉雷，线段距离场 + 辉光，不再是抖动的曲线）· 溶解（有序抖动 + 噪声，边缘带亮边）· 能量场（加强，不再发灰）· 等离子（加了域扭曲，不再退化成同心圆）。<strong>GPU 类型 20 → 24 个</strong>。</span></li>
         <li><b>工坊布局重排：空白填满</b><span>以前预览窗下面是<b>一大片空白</b>，而操作全堆在右侧一列、要一直往下滚。现在改成<strong>两列</strong>：左边类型浏览器，右边是预览窗 + <strong>它下面并排的「图层 / 图层参数 / 文档」</strong>。需要滚动的地方只有「你展开某个折叠分组」——不再是浪费空间。</span></li>
