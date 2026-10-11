@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="特效评审台更新说明：新增贴图工坊、站点标识重做、自检扩容。">
+<title>更新说明 · 特效评审台</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<!-- 主题在样式表之前同步定下来（和首页同一套逻辑、同一个 key），否则会先白一瞬 -->
+<style>
+  html[data-theme="light"]{background:#f6f7f9;color-scheme:light}
+  html[data-theme="dark"]{background:#0d1117;color-scheme:dark}
+</style>
+<script>
+(function () {
+  var theme = null;
+  try { theme = localStorage.getItem("vfx-theme"); } catch (e) { theme = null; }
+  if (theme !== "dark" && theme !== "light") {
+    theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  document.documentElement.dataset.theme = theme;
+})();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <img class="logo-mark" src="./logo.svg" width="34" height="34" alt="">
+    <span>更新说明<span class="brand-sub">ASTERIUS · CHANGELOG</span></span>
+  </div>
+  <nav class="ws-nav" aria-label="站点导航">
+    <a href="./index.html">作品评审</a>
+    <a href="./workshop.html">贴图工坊</a>
+    <a href="./updates.html" aria-current="page">更新说明</a>
+  </nav>
+  <div class="topbar-right">
+    <button id="theme-toggle" class="button secondary small" type="button" title="切换白天 / 夜间">夜间</button>
+  </div>
+</header>
+
+<main class="upd-main">
+
+  <section class="upd-hero">
+    <span class="upd-badge">最新</span>
+    <h1>v1.2.0</h1>
+    <p class="upd-lead">新增<strong>贴图工坊</strong>（程序化特效贴图生成器）；站点标识整个重做；自检从 188 项扩到 199 项。</p>
+    <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
+  </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>新增 · 贴图工坊</h2><span class="ws-dim">/workshop.html</span></div>
+    <div class="ws-card-body">
+      <p class="upd-p">一个在浏览器里跑的特效贴图生成器，用来做爆发、拖尾、溶解、闪电、裂纹这类要喂给引擎的图。入口在顶栏右侧的「贴图工坊」。</p>
+      <ul class="upd-list">
+        <li><b>20 个生成器 / 8 个分类</b><span>噪波（分形噪波 · 云絮 · 湍流 · 大理石）、扭曲（漩涡）、径向（集中线 · 光芒 · 冲击环）、网格（棋盘 · 点阵 · 条纹 · 蜂窝）、有机（细胞 · 裂纹 · 划痕）、能量（闪电 · 等离子 · 溶解）、基础（渐变 · 颗粒）。</span></li>
+        <li><b>图层叠加</b><span>新建 / 复制 / 排序 / 显隐，12 种混合模式 + 不透明度，也能导入自己的图片当一层。</span></li>
+        <li><b>参数面板</b><span>滑杆 + 数字框：回车生效、Esc 撤销输入、↑↓ 按步长微调、双击恢复默认，数值自动夹进范围并对齐步长。</span></li>
+        <li><b>着色三档</b><span>灰度 / 单色 / 色阶（12 套内置渐变），另有「亮度转透明」——一键把黑底素材变成透明底。</span></li>
+        <li><b>平铺检查</b><span>1×1 / 2×2 / 3×3 / 4×4 切换。噪波用的是周期性哈希，整数密度下是真无缝。</span></li>
+        <li><b>导出</b><span>PNG、法线图（由灰度生成切线空间法线）、序列图集（按帧铺网格，供 UE5 翻转书用）、通道打包（R/G/B/A 各取一张图）、复制到剪贴板。</span></li>
+        <li><b>本地无缝化</b><span>偏移 + 边缘融合把接缝抹掉。纯本地算法，瞬间出结果、离线可用、不耗 API 额度。</span></li>
+        <li><b>8 套内置样例</b><span>爆炸火光 / 技能冲击波 / 魔法漩涡 / 闪电打击 / 地面裂纹 / 消融溶解 / 神圣光芒 / 做旧划痕。</span></li>
+        <li><b>工程性</b><span>撤销重做（Ctrl+Z / Ctrl+Y）、空格播放、Delete 删层、存文件 / 读文件 / 分享链接（文档能压进 URL）、浏览器里自动保存。</span></li>
+      </ul>
+      <p class="upd-note">全程在本机浏览器里算：<b>不上传、不联网、不依赖服务端</b>，所以本地版和链接版行为完全一致。</p>
+    </div>
+  </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>改版 · 站点标识</h2><span class="ws-dim">logo.svg / favicon.svg</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>新标识：彗星</b><span>橙色圆盘 + 一条挖空的扫掠带子 + 一枚实心月牙。图标是矢量，放到多大都不糊。</span></li>
+        <li><b>16px 也认得出</b><span>favicon 与主标同源自动生成，小尺寸下单独调过（挖空边缘的模糊减半），不再是糊成一团。</span></li>
+        <li><b>单一真源</b><span>四个产物（主标 / favicon / 触屏图标 / 页面内联标）由一条命令统一生成，自检逐字比对，任何一处手改都会红灯。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>内部 · 工程</h2><span class="ws-dim">自检 188 → 199 项</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>自检新增第 21 节</b><span>给浏览器页面做了一套最小 DOM 桩，把贴图工坊的脚本在 Node 里真跑一遍，再逐个生成器验「出图且不是纯色」——以后谁改坏一个生成器，跑一次自检就红灯。</span></li>
+        <li><b>维护说明新增两条坑</b><span>第 23 条「白色笔刷其实是透明挖空，别拿预览图猜 alpha」；第 24 条「搬到链接版的功能不许偷偷依赖服务端」。</span></li>
+        <li><b>部署提交信息带版本号</b><span>仓库历史里每次提交会写明「v1.2.0 更新 public/xxx」，方便回溯。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ws-card upd-card upd-next">
+    <div class="ws-card-head"><h2>还没做 / 已知取舍</h2></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>GIF 动图导出</b><span>暂时没做（要自己写 GIF 编码器）。动画先用「序列图集」导出，用途是一样的。</span></li>
+        <li><b>模型服务商的 CORS 差异</b><span>链接版由浏览器直连模型服务，所以对方必须放行跨域。实测可用：DeepSeek / 通义百炼 / 智谱 / 火山方舟。</span></li>
+        <li><b>github.io 在国内访问不稳定</b><span>这是托管位置的固有限制，不是代码问题。本地版可以当兜底。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="upd-foot">更早的版本没有单独记录。这一版之前，站点标识换过三次稿，过程稿留在仓库的 <code>tools/logo-drafts/</code> 里。</p>
+
+  <footer class="site-foot">
+    <a href="./index.html">作品评审</a>
+    <span>·</span>
+    <a href="./workshop.html">贴图工坊</a>
+    <span>·</span>
+    <span>作品视频与素材从不离开本机</span>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var btn = document.getElementById('theme-toggle');
+  function sync() { btn.textContent = document.documentElement.dataset.theme === 'dark' ? '白天' : '夜间'; }
+  sync();
+  btn.addEventListener('click', function () {
+    var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('vfx-theme', next); } catch (e) {}
+    sync();
+  });
+})();
+</script>
+</body>
+</html>
