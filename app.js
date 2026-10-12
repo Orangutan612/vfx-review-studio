@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791823158551';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791823158551';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791823158551';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791824404307';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791824404307';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791824404307';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791823158551';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791824404307';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -1925,3 +1925,73 @@ try { $('consent').checked = localStorage.getItem('vfx-consent') === '1'; } catc
 updateButtons();
 loadReferences();
 checkHealth();
+
+/* ── 选项解释 + 参考勾选记忆（追加在末尾：函数声明会提升，模块求值完才会触发事件）──
+   为什么要有："循环是什么意思""怎么算实战技能"这类疑问，要选完就能看到解释；
+   参考的勾选是 DOM 状态，刷新就没了 —— 那正是"报告里没有参考对照"的常见原因。 */
+const PURPOSE_HINTS = [
+  [/日常练习/, '自己练手的一段：看完成度与手感，不按商业标准苛求。'],
+  [/实战技能/, '游戏里真会放的那一下 —— 起手、展开、收尾完整走一遍，重点看节奏与可读性。'],
+  [/命中反馈/, '打击反馈：看命中瞬间的力度、顿帧与闪白是否干净。'],
+  [/环境氛围/, '场景氛围：看循环是否自然、有没有明显接缝、与环境的融合。'],
+  [/UI|界面/, '界面特效：看响应速度、层级与信息可读性。'],
+  [/其它|自行判断/, '没说清也没关系 —— 模型会按画面自行判断，并把依据写进报告。'],
+];
+const CAMERA_HINTS = [
+  [/不确定|自行判断/, '不确定就选这个：模型自己判断观看距离，并把这件事写进「证据边界」。'],
+  [/手机/, '手机竖屏：画面小、离得近，细节和可读性要求最高。'],
+  [/常规游戏镜头/, '第三人称中景：最主流的观看距离。'],
+  [/远景|俯视/, '远景 / 群体战：离得远，优先看轮廓与体量，别抠细枝末节。'],
+  [/特写|近景/, '特写 / 镜头贴近：质感和细节瑕疵都会被放大。'],
+  [/过场/, '过场演出：镜头会动、有景深，看整体调度。'],
+];
+function syncSettingHints() {
+  for (const [selId, hintId, table] of [['purpose', 'purpose-hint', PURPOSE_HINTS], ['camera', 'camera-hint', CAMERA_HINTS]]) {
+    const sel = document.getElementById(selId), hint = document.getElementById(hintId);
+    if (!sel || !hint) continue;
+    const text = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    const hit = table.find(([re]) => re.test(text));
+    hint.textContent = hit ? hit[1] : '';
+    hint.hidden = !hint.textContent;
+  }
+}
+const refCheckedKey = name => 'vfx-ref-checked:' + name;
+function readRefChecked(name) { try { return localStorage.getItem(refCheckedKey(name)) === '1'; } catch { return false; } }
+function saveRefChecked(name, on) { try { localStorage.setItem(refCheckedKey(name), on ? '1' : '0'); } catch {} }
+function updateReferenceState() {
+  const el = document.getElementById('reference-state');
+  if (!el) return;
+  const list = (typeof referenceFiles !== 'undefined' && referenceFiles) ? referenceFiles : [];
+  const videos = list.filter(item => item.kind !== 'image').length;
+  const images = list.filter(item => item.kind === 'image').length;
+  el.textContent = list.length
+    ? '已导入 ' + videos + ' 个参考视频 · ' + images + ' 张参考图。勾选要参与对比的（最多 3 个视频 / 15 张图），报告的「参考对照」会按它们展开。'
+    : '';
+  el.hidden = !el.textContent;
+}
+{
+  const p = document.getElementById('purpose');
+  const c = document.getElementById('camera');
+  if (p) p.addEventListener('change', syncSettingHints);
+  if (c) c.addEventListener('change', syncSettingHints);
+  syncSettingHints();
+  const clearBtn = document.getElementById('reference-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      if (state.busy || !referenceFiles.length) { status('参考库已经是空的。'); return; }
+      if (!window.confirm('清空参考库里的 ' + referenceFiles.length + ' 个素材？这一步不可撤销。')) return;
+      for (const item of [...referenceFiles]) {
+        await fetch('/api/references?name=' + encodeURIComponent(item.name), { method: 'DELETE' });
+      }
+      await loadReferences();
+      status('参考库已清空。');
+    });
+  }
+
+  const listEl = document.getElementById('reference-list');
+  if (listEl) {
+    updateReferenceState();
+    // 列表一变就刷新状态行（用观察者，避免再去改渲染函数那堆代码）
+    new MutationObserver(updateReferenceState).observe(listEl, { childList: true });
+  }
+}
