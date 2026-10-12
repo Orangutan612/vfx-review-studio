@@ -119,7 +119,16 @@ function card(item, index, frames, interactive, references) {
     }
     const rightCaption = reference.kind === 'image'
       ? '参考图 · ' + reference.name
-      : '参考《' + reference.name + '》 · 约 ' + Number(right.time).toFixed(2) + 's';
+      : (() => {
+          // ⚠ 必须显示「原片时间」：right.time 是选区内的相对时间（从选区起点算），
+          // 否则会出现「选了 12–40 秒，报告却写约 0.00s」这种看着像出错的情况。
+          const rel = Number(right.time) || 0;
+          const seg = reference.range || {};
+          const abs = Number.isFinite(seg.start) ? seg.start + rel : rel;
+          const trimmed = Number.isFinite(seg.start) && seg.start > 0.05;
+          return '参考《' + reference.name + '》 · 原片 ' + abs.toFixed(2) + 's'
+            + (trimmed ? '（所选区间 ' + seg.start.toFixed(1) + '–' + Number(seg.end).toFixed(1) + 's 内 ' + rel.toFixed(2) + 's）' : '');
+        })();
     return '<div class="compare">'
       + frameFigure(left.image, '你的作品', '你的作品 · 约 ' + timeLabel(item.evidenceTime), interactive, item.evidenceTime)
       + '<div class="compare-tag" aria-hidden="true">对照</div>'
