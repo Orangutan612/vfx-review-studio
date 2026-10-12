@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791813924699"></script>
-<script src="./update-check.js?v=1791813924699"></script>
+<script src="./frame-guard.js?v=1791815283139"></script>
+<script src="./update-check.js?v=1791815283139"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791813924699">
+<link rel="stylesheet" href="./style.css?v=1791815283139">
 </head>
 <body>
 
@@ -47,15 +47,33 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.5</h1>
+    <h1>v1.4.6</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.6</h2><span class="ws-dim">界面细节</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>像链接的小按钮，全站统一成按钮</b><span>以前「用播放位置作起点 / 终点」「关闭」「放弃」「收起」这类都是<b>无边框 + 虚线下划线</b>，看着像链接、点着不像按钮。现在统一成有边框的小按钮（悬停变色），一共 7 处。</span></li>
+        <li><b>下拉框的小三角不再贴边</b><span>右侧留白从 10px 加到 34px，箭头不用挤在边框上。</span></li>
+        <li><b>聚焦不再画方框</b><span>以前点进输入框 / 文本域会多出一圈方形描边 —— 原因是文本框一聚焦就必然命中 <code>:focus-visible</code>（规范如此），只要写了描边就会一直顶着。现在<b>只换边框颜色、不画额外方框</b>：文本框 / 下拉框 / 数字框 / 滑杆全部实测 <code>outline: none</code>。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · 1.4.v1.4.5</h2>
+
+
+  <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.5</h2><span class="ws-dim">选区自由 + 代价可见</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
+        <li><b>修：选区放开了，跑起来还是被拦</b><span>上一版只改了界面校验，但<b>解码器里还藏着一道 15 秒的硬闸</b> —— 界面让你选 30 秒，一点开始评审就报「评审范围最长 15 秒」。这次两处一起改，并加了一条自检专门盯解码器，防止再出现"只改一处"。</span></li>
+        <li><b>档位做成看得见的标签</b><span>以前代价只是提示里的一串字，容易看漏。现在选区旁边直接挂一个彩色标签：<b>省 / 标准 / 偏高 / 很重</b>，后面跟着页数（如「标准 · 38 页」）。</span></li>
+        <li><b>小按钮不再像链接</b><span>「换一个视频」「恢复整段」原来带虚线下划线，现在是有边框的按钮。</span></li>
+
         <li><b>选区不再限长</b><span>原来是 <b>15 秒</b>的死上限（一段完整的爆炸或技能演出经常要切成两半）。现在<b>不设人为上限</b> —— 能选多长由视频本身决定（上传上限 2 分钟），整段丢进去评也行。</span></li>
         <li><b>代价实时算给你看（新）</b><span>选区越长、模型要读的接触表页数越多，耗时和费用就越高 —— 这是事实，与其一刀切替你决定，不如<b>标清楚让你自己权衡</b>。拖动选区时下面实时显示：<b>约多少帧 / 多少页接触表 / 属于哪一档</b> —— <b>省</b>（≤15 秒，约 19 页内）· <b>标准</b>（≤30 秒，约 38 页）· <b>偏高</b>（≤60 秒，约 75 页）· <b>很重</b>（整片级别，上百页）。</span></li>
       </ul>
