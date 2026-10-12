@@ -5,9 +5,9 @@
  * 对不熟命令行的人来说，「编辑 .env 文件」这一步就足以劝退，所以把它做成了网页上的
  * 一个对话框：选一家 → 粘贴 Key → 点一下 → 当场验证模型真的能读图 → 写盘 → 热生效。
  */
-import { config, configStatus, writeEnvFile, reloadConfig, ENV_PATH } from './config.mjs?v=1791825644761';
-import { chat, textPart, imagePart, LlmError } from './llm.mjs?v=1791825644761';
-import { PROVIDERS, publicProviders, findProvider, TEST_IMAGE, TEST_QUESTION } from './providers.mjs?v=1791825644761';
+import { config, configStatus, writeEnvFile, reloadConfig, ENV_PATH } from './config.mjs?v=1791827165322';
+import { chat, textPart, imagePart, LlmError } from './llm.mjs?v=1791827165322';
+import { PROVIDERS, publicProviders, findProvider, TEST_IMAGE, TEST_QUESTION } from './providers.mjs?v=1791827165322';
 
 export function setupState() {
   return {
