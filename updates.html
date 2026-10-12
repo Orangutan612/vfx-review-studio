@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791822328626"></script>
-<script src="./update-check.js?v=1791822328626"></script>
+<script src="./frame-guard.js?v=1791823158551"></script>
+<script src="./update-check.js?v=1791823158551"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791822328626">
+<link rel="stylesheet" href="./style.css?v=1791823158551">
 </head>
 <body>
 
@@ -47,10 +47,24 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.13</h1>
+    <h1>v1.4.14</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.14</h2><span class="ws-dim">参考库排版重做</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>参考项改成两行，不再挤成一团</b><span>第一行：<b>缩略图 · 文件名+规格 · 预览/删除</b>；第二行：<b>起点–终点 · 整段 · 用这一段 · 读取这一段 · 取用摘要</b>。文件名过长会省略号，不会再顶出容器。</span></li>
+        <li><b>修：数字框是空的</b><span>区间输入框视觉上没值（宽度/内边距问题），现在明确显示，行上还写「取 0.0–120.0 秒」。</span></li>
+        <li><b>修：参考行只出现最后一条</b><span>重排时把 `appendChild` 挤到了循环外 —— 一行代码的位置错了，就会让列表只剩最后一项。已修并复测。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.13</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.13</h2><span class="ws-dim">参考库终于真的能用</span></div>
