@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791824404307';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791824404307';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791824404307';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791825644761';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791825644761';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791825644761';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791824404307';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791825644761';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -676,6 +676,7 @@ function renderReferences() {
     box.value = item.name;
     box.title = '勾上就用它当本次评审的参照';
     box.addEventListener('change', () => {
+      if (box.checked && window.__refCommit && window.__refCommit[item.name]) (window.__refCommit[item.name] || function () {})();
       const checked = [...list.querySelectorAll('input[type=checkbox]:checked')]
         .map(input => referenceFiles.find(entry => entry.name === input.value))
         .filter(Boolean);
@@ -766,7 +767,7 @@ function renderReferences() {
       const useBtn = document.createElement('button');
       useBtn.type = 'button';
       useBtn.className = 'row-action';
-      useBtn.textContent = '用这一段';
+      useBtn.textContent = '立即生效';
       useBtn.addEventListener('click', () => {
         const a = Number(from.value) || 0, b = Number(to.value) || 0;
         if (!(b - a > 0.1)) { status('终点要比起点的至少大 0.1 秒。', true); return; }
@@ -805,12 +806,31 @@ function renderReferences() {
       summary.className = 'reference-range-summary';
       const refresh = () => {
         const a = Number(from.value) || 0, b = Number(to.value) || 0;
-        summary.textContent = Number.isFinite(known)
-          ? '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒（共 ' + (b - a).toFixed(1) + ' 秒 / 片长 ' + known.toFixed(1) + ' 秒）'
-          : '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒';
+        const savedNow = refRangeFor(item.name, known);
+        const isSame = Math.abs(savedNow.start - a) < 0.05 && Math.abs(savedNow.end - b) < 0.05;
+        const span = (b - a).toFixed(1);
+        summary.textContent = (isSame ? '✓ 本次评审将参考 ' : '⚠ 未生效：点一下输入框外或按回车即生效 → ')
+          + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒'
+          + (Number.isFinite(known) ? '（共 ' + span + ' 秒 / 片长 ' + known.toFixed(1) + ' 秒）' : '');
+        summary.classList.toggle('is-pending', !isSame);
+      };
+      /* 输入就生效：以前必须点「用这一段」才保存，用户输完以为好了 —— 那是设计错，不是用户没点对。
+         现在：边输边看摘要（input）、失焦或回车即保存（change）、勾选时也保存一次。 */
+      const commitRangeExport = (name) => { const a = Number(from.value) || 0, b = Number(to.value) || 0; if (b - a > 0.1) saveRefRange(name, a, b); };
+      if (!window.__refCommit) window.__refCommit = {};
+      window.__refCommit[item.name] = commitRangeExport;
+      let lastSaved = '';
+      const commit = () => {
+        const a = Number(from.value) || 0, b = Number(to.value) || 0;
+        if (!(b - a > 0.1)) { status('终点要比起点的至少大 0.1 秒，这一段先不生效。', true); refresh(); return; }
+        saveRefRange(item.name, a, b);
+        lastSaved = a.toFixed(1) + '–' + b.toFixed(1);
+        refresh();
       };
       from.addEventListener('input', refresh);
       to.addEventListener('input', refresh);
+      from.addEventListener('change', commit);
+      to.addEventListener('change', commit);
       refresh();
       bar.append(from, dash, to, whole, useBtn, readBtn, summary);
       row.append(bar);
