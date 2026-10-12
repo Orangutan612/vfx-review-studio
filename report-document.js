@@ -216,6 +216,10 @@ export function renderScore(score) {
     + '<span class="score-grade">' + escapeHTML(scoreBand(total) || score.grade || '') + '</span>'
     + '</div>'
     + '<div class="score-dims">' + dims + '</div>'
+      + (score.counts ? '<p class="score-basis">判定依据：<b>' + score.counts.pass + '</b> 项通过 · <b>'
+        + score.counts.warn + '</b> 项有隐患 · <b>' + score.counts.fail + '</b> 项不通过'
+        + (score.counts.unknown ? ' · ' + score.counts.unknown + ' 项看不清' : '')
+        + '　（总分由这些结论推导 —— 判定有异议看这里，不是拍脑袋给的数字）</p>' : '')
     + '</div>'
     + '<div class="score-lists">'
     + '<div class="score-list good"><h4>做对了什么<span>这些已经成立，改别的地方时别弄坏</span></h4>' + list(score.strengths, 'good') + '</div>'
