@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791813924699';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791813924699';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791813924699';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791815283139';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791815283139';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791815283139';
 
 const $ = id => document.getElementById(id);
 
@@ -178,7 +178,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, describeWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791813924699';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791815283139';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -195,11 +195,20 @@ function showRange() {
   const { start, end } = selectedRange();
   const span = end - start;
   const summary = $('range-summary');
+  const chip = $('range-cost');
   if (validRange()) {
-    // 让用户看见代价：多少帧、多少页接触表、属于哪一档 —— 自己权衡选多长
+    // 让用户看见代价：档位标签 + 一句话（多少帧 / 多少页接触表）—— 自己权衡选多长
+    const est = estimateWork(span);
     summary.textContent = '只评审 ' + timeLabel(start) + ' — ' + timeLabel(end) + '，共 ' + timeLabel(span)
-      + ' · ' + describeWork(span) + '。';
-  } else if (span > videoDuration() + 0.001) {
+      + ' · 约 ' + est.frames + ' 帧 / ' + est.sheets + ' 页接触表。';
+    if (chip) {
+      chip.hidden = false;
+      chip.dataset.tier = est.tier.name;
+      chip.textContent = est.tier.name + ' · ' + est.sheets + ' 页';
+      chip.title = est.tier.note + '（约 ' + est.frames + ' 帧接触表）';
+    }
+  } else if (chip) { chip.hidden = true; }
+  if (!validRange() && span > videoDuration() + 0.001) {
     summary.textContent = '选区超出了视频长度（共 ' + timeLabel(videoDuration()) + '），请缩短。';
   } else {
     summary.textContent = '请选一段 ' + MIN_CLIP_SECONDS + ' 秒以上的连续画面，起点要早于终点，且不能超出视频长度。';
