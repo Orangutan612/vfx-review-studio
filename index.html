@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791813924699"></script>
-<script src="./update-check.js?v=1791813924699"></script>
+<script src="./frame-guard.js?v=1791815283139"></script>
+<script src="./update-check.js?v=1791815283139"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="本地特效视频逐帧评审：接触表 + 关键帧 + 全帧亮度序列，交给多模态模型给出可执行的修改建议。">
@@ -33,9 +33,9 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791813924699">
+<link rel="stylesheet" href="./style.css?v=1791815283139">
 <!-- 逐帧解码依赖 mp4box 解封装；这是经典脚本，必须在模块脚本之前加载。 -->
-<script src="./vendor/mp4box/mp4box.all.min.js?v=1791813924699"></script>
+<script src="./vendor/mp4box/mp4box.all.min.js?v=1791815283139"></script>
 </head>
 <body>
 
@@ -78,7 +78,7 @@
     <section class="panel" aria-labelledby="work-heading">
       <div class="panel-heading">
         <h2 id="work-heading"><span class="step">01</span> 你的作品</h2>
-        <button id="replace" class="text-button" hidden type="button">换一个视频</button>
+        <button id="replace" class="ghost-button" hidden type="button">换一个视频</button>
       </div>
 
       <input id="file" type="file" accept="video/mp4,video/quicktime,.mov" autocomplete="off" hidden>
@@ -94,7 +94,8 @@
       <div id="range-panel" class="range-panel" hidden>
         <div class="range-heading">
           <strong>选择评审范围</strong>
-          <button id="range-reset" class="text-button" type="button">恢复整段</button>
+          <span id="range-cost" class="cost-chip" hidden></span>
+          <button id="range-reset" class="ghost-button" type="button">恢复整段</button>
         </div>
         <p class="help">只评审选中的这段连续画面。选区<b>越短越快越省</b>；选长了也能跑，但模型要读的接触表页数会成倍增长。拖动选区时下面会实时算出「约多少帧 / 多少页接触表 / 属于哪一档」，你自己权衡。</p>
         <label for="range-start-slider">起点</label>
@@ -334,7 +335,7 @@
 //   链接版 —— 没有任何服务端，本页把 /api/* 全部接管
 // 判断方式很直接：能连上 /api/health 就是本地版。
 // 必须赶在 app.js 之前装上拦截，否则它第一轮请求就打到空处了。
-import { detectMode, installStaticBackend, watchForUpdates, stampAssetVersions } from "./core/bridge.mjs?v=1791813924699";
+import { detectMode, installStaticBackend, watchForUpdates, stampAssetVersions } from "./core/bridge.mjs?v=1791815283139";
 
 // GitHub Pages 有 10 分钟缓存，图标又是单独一套缓存 —— 打上版本号才不会「部署了却没变」
 stampAssetVersions();
@@ -365,7 +366,7 @@ watchForUpdates(() => {
 });
 
 try {
-  await import("./app.js?v=1791813924699");
+  await import("./app.js?v=1791815283139");
 } catch (error) {
   document.body.insertAdjacentHTML("afterbegin",
     '<div style="margin:16px;padding:14px 18px;border-radius:12px;background:#fef3f2;border:1px solid #fda29b;color:#b42318;font-size:14px">'
