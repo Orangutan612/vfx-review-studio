@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791825644761"></script>
-<script src="./update-check.js?v=1791825644761"></script>
+<script src="./frame-guard.js?v=1791827165322"></script>
+<script src="./update-check.js?v=1791827165322"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791825644761">
+<link rel="stylesheet" href="./style.css?v=1791827165322">
 </head>
 <body>
 
@@ -47,10 +47,35 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.17</h1>
+    <h1>v1.4.19</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.19</h2><span class="ws-dim">修一处语法错</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：上一版把报告模块写坏了</b><span>改「参考时刻显示原片时间」时多留了一个冒号，导致报告模块<b>整个加载失败</b>（页面会打不开）。已修，并把「文档跟版本」加进自检。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.18</h2>
+
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.18</h2><span class="ws-dim">参考对照看得懂了</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：报告里一律写「约 0.00s」</b><span>那个数字是<b>所选区间内的相对时间</b>（从你截取的那段起点算），不是原片时间 —— 你选了 12–40 秒，它当然从 0.00 开始，看着就像出错。现在显示的是<b>原片时间</b>，并注明区间：<b>「参考《X》· 原片 12.00s（所选区间 12.0–40.0s 内 0.00s）」</b>。</span></li>
+        <li><b>参考对照改成「逐段对照」（新要求）</b><span>以前模型可以笼统说一句"建议多参考优秀作品"糊弄过去。现在<b>硬性要求</b>：拿着你最该改的那几处，<b>逐条去参考里找最接近的那一刻</b>，并写清三件事 —— ① 参考那一刻怎么处理；② 你那一刻怎么处理；③ <b>差在哪</b>；还要给出<b>「值得学的一点」</b>。参考要是也没解决这个问题，必须直说「参考这里也不行」，不许硬凑。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.1.4.17</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.17</h2><span class="ws-dim">参考区间：输入即生效</span></div>
