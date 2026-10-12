@@ -1008,3 +1008,25 @@ select{padding-right:34px; background-position:right 10px center}
 }
 .reference-thumb.is-empty{background:repeating-linear-gradient(45deg,var(--surface-2),var(--surface-2) 6px,var(--card) 6px,var(--card) 12px)}
 .reference-range-tip{color:var(--muted);font-size:11.5px;white-space:nowrap}
+
+/* ════ 参考库的行：两行布局（第一行 缩略图/文件名/操作，第二行 取用区间）════
+   之前全挤在一行，文件名长了会把内容顶出容器 —— 这里用 flex-wrap + min-width:0 + 省略号兜住。 */
+.reference-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--card);margin-bottom:8px;
+}
+.reference-check{flex:none}
+.reference-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 180px}
+.reference-name{font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reference-kind{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reference-acts{display:flex;gap:6px;flex:none}
+.reference-range{
+  flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  padding-top:9px;border-top:1px dashed var(--line);
+}
+.reference-range input[type=number]{
+  width:74px;padding:5px 8px;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--ink);font:inherit;font-size:12.5px;text-align:center;box-sizing:border-box;
+}
+.reference-range-tip{color:var(--muted);font-size:12px}
+.reference-range-summary{color:var(--muted);font-size:11.5px;white-space:nowrap;margin-left:2px}
