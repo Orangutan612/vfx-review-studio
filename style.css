@@ -991,3 +991,12 @@ select{padding-right:34px; background-position:right 10px center}
 
 .ghost-button.danger{color:#f0836f;border-color:rgba(240,131,111,.4)}
 .ghost-button.danger:hover{color:#fff;background:#c0392b;border-color:#c0392b}
+
+/* 参考片段的取用区间（方案 B：每项单独选一段） */
+.reference-range{display:inline-flex;align-items:center;gap:4px;margin-left:2px}
+.reference-range input[type=number]{
+  width:62px;padding:4px 7px;border-radius:7px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font:inherit;font-size:12px;text-align:center;
+}
+.reference-range input[type=number]:focus{border-color:var(--brand)}
+.reference-range-tip{color:var(--muted);font-size:12px}
