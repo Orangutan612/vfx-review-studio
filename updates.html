@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791823158551"></script>
-<script src="./update-check.js?v=1791823158551"></script>
+<script src="./frame-guard.js?v=1791824404307"></script>
+<script src="./update-check.js?v=1791824404307"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791823158551">
+<link rel="stylesheet" href="./style.css?v=1791824404307">
 </head>
 <body>
 
@@ -47,10 +47,38 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.14</h1>
+    <h1>v1.4.16</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.16</h2><span class="ws-dim">刷新回到原状</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>刷新后不再残留界面状态</b><span>上一版让"参考的勾选"记住在浏览器里 —— 那是我自作主张，刷新页面本来就该回到原状。<b>已撤销</b>：现在刷新就是未勾选、干净的界面。</span></li>
+        <li><b>新增「清空」按钮</b><span>参考库里的素材是存在你浏览器本地库里的（所以刷新后还在）。想回到全空状态，点参考库右上角的「<b>清空</b>」一下即可。<br><i>说明：素材保留是我的选择（免得每次重传），不是"设计需求"；要改成"刷新即全清"，说一声即可。</i></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.15</h2>
+
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.15</h2><span class="ws-dim">参考选择 + 选项说清楚</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：选了参考，报告里却没有对照</b><span>根因是<b>勾选状态只活在页面上</b> —— 刷新一次就没了，于是评审时一个参考都没带上。现在<b>勾选按名字记在本机</b>，刷新后仍然勾着；参考库上方还会写一句「已导入 N 个参考视频 · 勾选要参与对比的…」。</span></li>
+        <li><b>修：区间的数字框又长又空</b><span>全局输入框样式优先级更高，把这两个小框撑成了整行宽、值被挤出可见区。现在压到 <b>56px</b> 并居中对齐（实测宽度 56px）。</span></li>
+        <li><b>「作品内容 / 观看距离」重做（新）</b><span>原来的选项太含糊（「循环 / 持续状态」到底是什么？「实战技能」怎么算？）。现在改成具体分类，<b>选完下面当场给一句解释</b>：<br>作品内容：日常练习 · 实战技能（起手→展开→收尾）· 命中反馈 · 环境氛围 · UI 特效 · 其它（让模型自行判断）<br>观看距离：<b>不确定 / 让模型自行判断</b>（默认）· 手机竖屏 · 常规游戏镜头 · 远景群体战 · 特写 · 过场演出</span></li>
+        <li><b>顺手纠正一处事实错误</b><span>参考说明里写着「录屏最长 30 秒」，实际早就放到 120 秒了。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.14</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.14</h2><span class="ws-dim">参考库排版重做</span></div>
