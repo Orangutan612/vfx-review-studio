@@ -141,9 +141,9 @@ export function frameMetrics(canvas) {
 export async function inspectVideo(file) {
   requireLib();
   const mp4 = Lib.createFile();
-  let track = null, error = null;
+  let track = null, error = null, info = null;
   mp4.onError = e => { error = e; };
-  mp4.onReady = info => { track = info.videoTracks[0]; };
+  mp4.onReady = value => { info = value; track = value.videoTracks[0]; };
   const buffer = await file.arrayBuffer();
   buffer.fileStart = 0;
   mp4.appendBuffer(buffer);
@@ -151,7 +151,16 @@ export async function inspectVideo(file) {
   if (error) throw new Error('视频解封装失败：' + error);
   if (!track) throw new Error('文件里没有视频轨道，请改用 H.264 的 MP4 / MOV。');
   return {
-    duration: track.duration / track.timescale,
+    /* 时长：**优先用 movie 级（mvhd / tkhd）**。
+       踩过的坑：不少导出软件把 mdhd.duration 写成 0，于是 track.duration/track.timescale
+       会得出 0 或"被 timescale 除小"的假值 —— 实测两个真实文件：29.1 秒的被算成 ≤0
+       （界面报"超过 2 分钟"）、80.8 秒的被算成 5 秒（报"太短，已跳过"）。
+       按可信度取第一个合理的正值：mvhd → tkhd(movie_duration) → mdhd。 */
+    duration: [
+      info && info.duration && info.timescale ? info.duration / info.timescale : NaN,
+      track.movie_duration && track.movie_timescale ? track.movie_duration / track.movie_timescale : NaN,
+      track.duration && track.timescale ? track.duration / track.timescale : NaN,
+    ].find(value => Number.isFinite(value) && value > 0.02) || NaN,
     width: track.video.width,
     height: track.video.height,
     total: track.nb_samples,
