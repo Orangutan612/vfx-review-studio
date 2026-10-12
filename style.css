@@ -1032,3 +1032,9 @@ select{padding-right:34px; background-position:right 10px center}
 }
 .reference-range-tip{color:var(--muted);font-size:12px}
 .reference-range-summary{color:var(--muted);font-size:11.5px;white-space:nowrap;margin-left:2px}
+
+/* 数字框：能直接输入就不需要那对上下箭头（白占空间、还容易被误点） */
+.reference-range input[type=number]{appearance:textfield;-moz-appearance:textfield}
+.reference-range input[type=number]::-webkit-outer-spin-button,
+.reference-range input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.reference-range-summary.is-pending{color:#d29922;font-weight:600}
