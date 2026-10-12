@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791747347948"></script>
-<script src="./update-check.js?v=1791747347948"></script>
+<script src="./frame-guard.js?v=1791813009362"></script>
+<script src="./update-check.js?v=1791813009362"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791747347948">
+<link rel="stylesheet" href="./style.css?v=1791813009362">
 </head>
 <body>
 
@@ -47,13 +47,24 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.3</h1>
-    <p class="upd-lead">修掉一个反复出现的坑：<strong>部署完却看到旧内容</strong> —— 原因是浏览器把 HTML 也缓存了，现在页面会自己发现并提示你刷新。</p>
+    <h1>v1.4.4</h1>
+    <p class="upd-lead">选区上限从 15 秒放宽到 <strong>30 秒</strong> —— 一段完整的爆炸或技能演出，不用再硬切成两半。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.4.3</h2><span class="ws-dim">旧页面自曝</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.4.4</h2><span class="ws-dim">选区放宽</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>选区上限 15 → 30 秒</b><span>以前最多只能选 15 秒，一段完整的爆炸或技能演出经常要硬切成两半。现在到 <b>30 秒</b>（和参考库片段一个长度）。选区超过 20 秒时页面会提醒一句：模型要读的接触表更多，<b>耗时和费用也会明显增加</b> —— 提醒但不拦你。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.3</h2>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>v1.4.3</h2><span class="ws-dim">旧页面自曝</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
         <li><b>修：偶尔会看到旧页面</b><span>部署之后有时打开还是旧内容（浏览器把网页本身缓存了）。现在页面会自己发现这种情况，并在底部提示你刷新 —— 点一下就好，不用再猜"到底传上去没有"。</span></li>
