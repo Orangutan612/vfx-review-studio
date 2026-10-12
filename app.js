@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791821628743';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791821628743';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791821628743';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791822328626';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791822328626';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791822328626';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791821628743';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791822328626';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -701,8 +701,8 @@ function renderReferences() {
     name.title = item.name;
 
     const size = document.createElement('span');
-    size.className = 'reference-size';
-    size.className = 'reference-kind ' + (item.kind === 'image' ? 'is-image' : 'is-video');
+
+    size.className = 'reference-size reference-kind ' + (item.kind === 'image' ? 'is-image' : 'is-video');
       size.textContent = (item.kind === 'image' ? '图片 · ' : '视频 · ') + (item.size / 1024 / 1024).toFixed(1) + ' MB'
         + (meta && meta.duration ? ' · 时长 ' + meta.duration.toFixed(1) + ' 秒' : (item.kind === 'image' ? '' : ' · 时长未知，点「读取这一段」确认'));
 
@@ -729,9 +729,11 @@ function renderReferences() {
         const wrap = document.createElement('span');
         wrap.className = 'reference-range';
         const saved = refRangeFor(item.name, NaN);
+        const known = meta && meta.duration ? meta.duration : NaN;   // 片长（抽预览图时记下的），用来限制上限、写人话摘要
         const mk = (cls, value) => {
           const input = document.createElement('input');
           input.type = 'number'; input.min = '0'; input.step = '0.5'; input.className = cls;
+          if (Number.isFinite(known)) input.max = String(Math.ceil(known));
           input.value = String(value);
           return input;
         };
@@ -861,14 +863,14 @@ async function cacheRefPreview(file) {
     await new Promise(resolve => {
       el.addEventListener('loadedmetadata', resolve, { once: true });
       el.addEventListener('error', resolve, { once: true });
-      setTimeout(resolve, 6000);
+      setTimeout(resolve, 2500);
     });
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
     const seekTo = duration ? Math.min(Math.max(0.5, duration * 0.1), Math.max(0.5, duration - 0.1)) : 0;
     await new Promise(resolve => {
       el.addEventListener('seeked', resolve, { once: true });
       try { el.currentTime = seekTo; } catch { resolve(); }
-      setTimeout(resolve, 4000);
+      setTimeout(resolve, 1500);
     });
     const vw = el.videoWidth || 320, vh = el.videoHeight || 180;
     const cw = 168, ch = Math.max(1, Math.round(vh * cw / vw));
@@ -1527,12 +1529,27 @@ async function uploadReferences(files) {
     }
     const cap = isImage ? 12 * 1024 * 1024 : 100 * 1024 * 1024;
     if (file.size > cap) { status(file.name + ' 超过 ' + Math.round(cap / 1024 / 1024) + ' MB，已跳过。', true); continue; }
-    status('正在存入参考库：' + file.name + ' ……');
-    const response = await fetch('/api/references?name=' + encodeURIComponent(file.name), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: file,
-    });
+    if (!isImage) { status('正在读取 ' + file.name + ' 的时长与预览图……'); await cacheRefPreview(file); }
+    status('正在存入参考库：' + file.name + '（大文件要几秒）……');
+    /* 存储必须走 fetch —— 链接版的静态后端只接管了 fetch，**不接管 XHR**（用 XHR 会直接 404）。
+       fetch 没有上传进度事件，所以这里用"已用秒数"做实时反馈：诚实、且不依赖 XHR。 */
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    let waited = 0;
+    status('正在存入参考库：' + file.name + '（' + mb + ' MB）……');
+    const ticker = setInterval(() => {
+      waited += 1;
+      status('正在存入参考库：' + file.name + '（' + mb + ' MB）…… 已用 ' + waited + ' 秒');
+    }, 1000);
+    let response;
+    try {
+      response = await fetch('/api/references?name=' + encodeURIComponent(file.name), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file,
+      });
+    } finally { clearInterval(ticker); }
+
+
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       status(data?.error || ('添加失败：' + response.status), true);
