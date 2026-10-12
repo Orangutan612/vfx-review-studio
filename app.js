@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791820834604';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791820834604';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791820834604';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791821628743';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791821628743';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791821628743';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791820834604';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791821628743';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -688,6 +688,14 @@ function renderReferences() {
     });
 
     const name = document.createElement('span');
+      const meta = item.kind !== 'image' ? readRefMeta(item.name) : null;
+      if (item.kind !== 'image') {
+        const thumb = document.createElement('img');
+        thumb.className = 'reference-thumb';
+        thumb.alt = '';
+        if (meta && meta.thumb) thumb.src = meta.thumb; else thumb.classList.add('is-empty');
+        row.append(thumb);
+      }
     name.className = 'reference-name';
     name.textContent = item.name;
     name.title = item.name;
@@ -695,7 +703,8 @@ function renderReferences() {
     const size = document.createElement('span');
     size.className = 'reference-size';
     size.className = 'reference-kind ' + (item.kind === 'image' ? 'is-image' : 'is-video');
-    size.textContent = (item.kind === 'image' ? '图片 · ' : '视频 · ') + (item.size / 1024 / 1024).toFixed(1) + ' MB';
+      size.textContent = (item.kind === 'image' ? '图片 · ' : '视频 · ') + (item.size / 1024 / 1024).toFixed(1) + ' MB'
+        + (meta && meta.duration ? ' · 时长 ' + meta.duration.toFixed(1) + ' 秒' : (item.kind === 'image' ? '' : ' · 时长未知，点「读取这一段」确认'));
 
     const remove = document.createElement('button');
     remove.type = 'button';
@@ -772,7 +781,29 @@ function renderReferences() {
             status('读取参考失败：' + (error && error.message ? error.message : error), true);
           } finally { setBusy(false); }
         });
-        wrap.append(from, tip, to, useBtn, readBtn);
+        const whole = document.createElement('button');
+        whole.type = 'button';
+        whole.className = 'row-action';
+        whole.textContent = '整段';
+        whole.title = '从 0 秒取到片尾';
+        whole.addEventListener('click', () => {
+          from.value = '0';
+          const known = readRefMeta(item.name)?.duration;
+          to.value = Number.isFinite(known) ? String(Math.round(known * 10) / 10) : '120';
+        });
+        const summary = document.createElement('span');
+        summary.className = 'reference-range-tip';
+        const refresh = () => {
+          const a = Number(from.value) || 0, b = Number(to.value) || 0;
+          const len = b - a;
+          summary.textContent = Number.isFinite(known)
+            ? '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒（共 ' + len.toFixed(1) + ' 秒 / 片长 ' + known.toFixed(1) + ' 秒）'
+            : '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒';
+        };
+        from.addEventListener('input', refresh);
+        to.addEventListener('input', refresh);
+        refresh();
+        wrap.append(from, tip, to, whole, useBtn, readBtn, summary);
         row.append(wrap);
       }
     row.append(box, name, size, look, remove);
@@ -809,6 +840,44 @@ function refRangeFor(name, duration) {
 }
 function saveRefRange(name, start, end) {
   try { localStorage.setItem(refRangeKey(name), JSON.stringify({ start: Math.max(0, start), end: Math.max(0, end) })); } catch {}
+}
+
+/* 参考的"长相"和时长：加进来时算一次、存本机。
+   为什么：列表里只有一个文件名和一串数字，用户根本看不出导进来的是什么、导成功没有。
+   做法：不整片解码 —— 用 <video> 抽一帧当缩略图，顺便拿时长（浏览器解出来的那个最准）。 */
+const refMetaKey = name => 'vfx-ref-meta:' + name;
+function readRefMeta(name) {
+  try { return JSON.parse(localStorage.getItem(refMetaKey(name)) || 'null'); } catch { return null; }
+}
+function saveRefMeta(name, meta) {
+  try { localStorage.setItem(refMetaKey(name), JSON.stringify(meta)); } catch {}
+}
+async function cacheRefPreview(file) {
+  if (readRefMeta(file.name)) return;
+  const url = URL.createObjectURL(file);
+  const el = document.createElement('video');
+  el.muted = true; el.preload = 'metadata'; el.src = url;
+  try {
+    await new Promise(resolve => {
+      el.addEventListener('loadedmetadata', resolve, { once: true });
+      el.addEventListener('error', resolve, { once: true });
+      setTimeout(resolve, 6000);
+    });
+    const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
+    const seekTo = duration ? Math.min(Math.max(0.5, duration * 0.1), Math.max(0.5, duration - 0.1)) : 0;
+    await new Promise(resolve => {
+      el.addEventListener('seeked', resolve, { once: true });
+      try { el.currentTime = seekTo; } catch { resolve(); }
+      setTimeout(resolve, 4000);
+    });
+    const vw = el.videoWidth || 320, vh = el.videoHeight || 180;
+    const cw = 168, ch = Math.max(1, Math.round(vh * cw / vw));
+    const canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    canvas.getContext('2d').drawImage(el, 0, 0, cw, ch);
+    saveRefMeta(file.name, { duration, thumb: canvas.toDataURL('image/jpeg', 0.72) });
+  } catch { /* 抽不出来就算了，列表里会显示"未知" */ }
+  finally { URL.revokeObjectURL(url); }
 }
 
 function pickSheets(list, max = REFERENCE_MAX_SHEETS) {
