@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791820834604"></script>
-<script src="./update-check.js?v=1791820834604"></script>
+<script src="./frame-guard.js?v=1791821628743"></script>
+<script src="./update-check.js?v=1791821628743"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791820834604">
+<link rel="stylesheet" href="./style.css?v=1791821628743">
 </head>
 <body>
 
@@ -47,10 +47,23 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.11</h1>
+    <h1>v1.4.12</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.12</h2><span class="ws-dim">参考库看得见了</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>参考库每项都有预览图 + 时长（新）</b><span>以前列表里只有一个文件名、大小和一串数字 —— <b>看不出导进来的是什么、也看不出导成功没有</b>。现在加入参考时会顺手抽一帧当<b>缩略图</b>，并记下<b>时长</b>（不整片解码，所以很快）。行上直接写「视频 · 32.5 MB · 时长 80.8 秒」。</span></li>
+        <li><b>选区间的输入变直观了</b><span>两个数字框下面实时用大白话写清：<b>「取 0.0–80.8 秒（共 80.8 秒 / 片长 80.8 秒）」</b>；多了「<b>整段</b>」一键按钮；终点框的<b>上限就是片长</b>，填超了会被夹住，不用自己猜。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.11</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.11</h2><span class="ws-dim">评分可审计 + 不许臆断</span></div>
