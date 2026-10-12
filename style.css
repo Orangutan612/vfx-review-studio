@@ -988,3 +988,6 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 
 /* 下拉框统一：右侧给小三角留足空间，别贴着边框 */
 select{padding-right:34px; background-position:right 10px center}
+
+.ghost-button.danger{color:#f0836f;border-color:rgba(240,131,111,.4)}
+.ghost-button.danger:hover{color:#fff;background:#c0392b;border-color:#c0392b}
