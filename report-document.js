@@ -180,7 +180,8 @@ function card(item, index, frames, interactive, references) {
 /* ───────────────────────── 评分板块 ───────────────────────── */
 
 /** 分数落到哪一档。用于决定配色，不让 4 分和 9 分看起来一样。 */
-const scoreLevel = value => value >= 85 ? 'great' : value >= 70 ? 'good' : value >= 55 ? 'pass' : 'weak';
+// 阈值必须和提示词里的评分锚点一致（90/70/50/30），否则颜色和文字标签会互相打架
+const scoreLevel = value => value >= 90 ? 'great' : value >= 70 ? 'good' : value >= 50 ? 'pass' : 'weak';
 const barLevel = value => value >= 8 ? 'great' : value >= 6 ? 'good' : value >= 4 ? 'pass' : 'weak';
 
 /**
@@ -212,7 +213,7 @@ export function renderScore(score) {
     + '<div class="score-badge ' + scoreLevel(total) + '">'
     + '<span class="score-num">' + total + '</span>'
     + '<span class="score-max">/ 100</span>'
-    + '<span class="score-grade">' + escapeHTML(score.grade || '') + '</span>'
+    + '<span class="score-grade">' + escapeHTML(scoreBand(total) || score.grade || '') + '</span>'
     + '</div>'
     + '<div class="score-dims">' + dims + '</div>'
     + '</div>'
@@ -223,7 +224,18 @@ export function renderScore(score) {
     + '</section>';
 }
 
-/* ───────────────────────── 报告主体 ───────────────────────── */
+
+/** 分数段：把数字翻译成"什么水平"，报告里直接写出来，别让人对着 51 分猜。 */
+function scoreBand(total) {
+  if (!Number.isFinite(total)) return '';
+  if (total >= 90) return '商业上线水准';
+  if (total >= 70) return '专业可用';
+  if (total >= 50) return '合格偏上';
+  if (total >= 30) return '问题明显';
+  return '基本没成立';
+}
+
+/* ───── 报告主体 ───────────────────────── */
 
 export function renderReport(report, frames = [], options = {}) {
   const interactive = options.interactive !== false;
