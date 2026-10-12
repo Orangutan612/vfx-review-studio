@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791815283139';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791815283139';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791815283139';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791816444159';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791816444159';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791816444159';
 
 const $ = id => document.getElementById(id);
 
@@ -127,6 +127,21 @@ function renderSteps(activeIndex, failedIndex = -1, doneCount = 0) {
 
 /* ───────────────────────── 选择作品 ───────────────────────── */
 
+/** 等浏览器报出时长 —— 它才是"你看到的那个时长"。
+    容器里的 track.duration/timescale 在 movie 与 media 两个 timescale 不一致时会差几十倍
+    （不同软件导出的片子经常不一致），那正是"换个视频就报超过 2 分钟"的根因。读不到就返回 NaN，交给调用方回退。 */
+function waitDuration(el, timeout = 8000) {
+  return new Promise(resolve => {
+    if (Number.isFinite(el.duration) && el.duration > 0) return resolve(el.duration);
+    let done = false;
+    const finish = value => { if (done) return; done = true; el.removeEventListener('loadedmetadata', onMeta); el.removeEventListener('durationchange', onMeta); resolve(value); };
+    const onMeta = () => { if (Number.isFinite(el.duration) && el.duration > 0) finish(el.duration); };
+    el.addEventListener('loadedmetadata', onMeta);
+    el.addEventListener('durationchange', onMeta);
+    setTimeout(() => finish(Number.isFinite(el.duration) && el.duration > 0 ? el.duration : NaN), timeout);
+  });
+}
+
 async function loadFile(file) {
   if (!file || state.busy) return;
   if (file.size > 100 * 1024 * 1024 || !/\.(mp4|mov)$/i.test(file.name)) {
@@ -137,32 +152,36 @@ async function loadFile(file) {
   status('正在读取视频…');
   try {
     const meta = await inspectVideo(file);
-    if (!Number.isFinite(meta.duration) || meta.duration <= 0 || meta.duration > 120) {
-      throw new Error('支持最长 2 分钟的视频，请先裁短再试。');
-    }
     if (state.url) URL.revokeObjectURL(state.url);
     state.url = URL.createObjectURL(file);
+    video.src = state.url;
+    video.load();
+    // 时长以浏览器为准；容器值只作兜底（读不到才用）
+    const browserDuration = await waitDuration(video);
+    const duration = Number.isFinite(browserDuration) && browserDuration > 0 ? browserDuration : meta.duration;
+    if (!Number.isFinite(duration) || duration <= 0 || duration > 120) {
+      throw new Error('支持最长 2 分钟的视频，请先裁短再试。');
+    }
     state.file = file;
-    state.mediaDuration = meta.duration;
+    state.mediaDuration = duration;
     state.report = null;
     state.sheets = []; state.series = []; state.hdFrames = [];
     $('results').hidden = true;
     $('task-panel').hidden = true;
     hideProgress();
 
-    video.src = state.url;
-    video.load();
     $('dropzone').hidden = true;
     $('video-wrap').hidden = false;
     $('replace').hidden = false;
+    $('remove-video').hidden = false;
     $('range-panel').hidden = false;
     $('file-name').textContent = file.name;
     $('file-name').title = file.name;
-    $('file-meta').textContent = meta.width + ' × ' + meta.height + ' · ' + timeLabel(meta.duration)
+    $('file-meta').textContent = meta.width + ' × ' + meta.height + ' · ' + timeLabel(duration)
       + ' · ' + meta.total + ' 帧 · ' + (file.size / 1024 / 1024).toFixed(1) + ' MB';
 
     resetRange();
-    status(meta.duration > 15
+    status(duration > 15
       ? '视频已就绪。选一段连续画面（选区越短越快越省，选区框下面会实时标出预计页数和档位），填好右侧需求再开始评审。'
       : '视频已就绪。填好右侧需求，就可以开始评审。');
   } catch (error) {
@@ -178,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791815283139';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791816444159';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -486,6 +505,30 @@ $('file').addEventListener('change', event => {
   event.target.value = '';
 });
 $('replace').addEventListener('click', () => $('file').click());
+
+/** 移除已选作品：把状态和界面都退回"还没选"的样子。 */
+function removeVideo() {
+  if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
+  state.file = null;
+  state.mediaDuration = 0;
+  state.report = null;
+  video.removeAttribute('src');
+  video.load();
+  $('file').value = '';
+  $('video-wrap').hidden = true;
+  $('range-panel').hidden = true;
+  $('replace').hidden = true;
+  $('remove-video').hidden = true;
+  $('dropzone').hidden = false;
+  $('file-name').textContent = '还没有选择作品';
+  $('file-meta').textContent = '等待选择';
+  $('results').hidden = true;
+  $('task-panel').hidden = true;
+  hideProgress();
+  status('已移除作品。重新拖入或点选一个视频即可。');
+  updateButtons();
+}
+$('remove-video').addEventListener('click', removeVideo);
 
 const dropzone = $('dropzone');
 for (const type of ['dragenter', 'dragover']) {
