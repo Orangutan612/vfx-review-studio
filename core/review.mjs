@@ -9,8 +9,8 @@
  * 为什么非要这样：一次性把 450 帧塞给模型既超上下文、又把细节摊薄；而只给几张孤立
  * 截图，模型就看不出「运动」——接触表 + 关键帧放大，这两个必须都有。
  */
-import { chat, chatJson, imagePart, textPart, LlmError } from './llm.mjs?v=1791817968201';
-import { config } from './config.mjs?v=1791817968201';
+import { chat, chatJson, imagePart, textPart, LlmError } from './llm.mjs?v=1791820834604';
+import { config } from './config.mjs?v=1791820834604';
 
 /**
  * 特效评审准则（rubric）。
@@ -299,6 +299,14 @@ function reportShape(count) {
     '',
     '评分要求：八个维度的 score 各给 0–10 分（可带一位小数）。',
     '打分要对得起后面的建议 —— 你指出问题的地方就该扣分，说做对了的地方就该给分，不要一律给中间分糊弄。',
+      '总分不看你给的那个数字 —— 程序会按你的 pass / warn / fail 结论推导（通过=10、有隐患=6.5、不通过=2.5，看不出不计入）。',
+      '所以每个维度的结论要经得起看：拿不准就写 unknown 并说明原因，不要靠猜。',
+      '',
+      '有据可依（硬要求，违反即视为无效输出）：',
+      '- 每条结论、每条建议都必须绑定证据：要么是画面里看到的具体东西（时刻 + 部位 + 现象），要么是实算数值（亮度 / mo 的具体数字）。',
+      '- 禁止主观臆断：写不出证据的判断不要写。不要用"我觉得""应该是""大概作者想""风格问题"这类没有画面依据的说法。',
+      '- 拿不准的写进 limitations，不要塞进结论里当事实。',
+      '- 你只能评论画面里看得见的东西：看不到引擎参数、看不到帧率、看不到制作过程，就不要推测它们。',
       '评分锚点（按这把尺子，不要自己另立一套）：',
       '- 9–10：商业上线水准 —— 这类镜头直接放进一线项目也不用改；',
       '- 7–8：专业可用 —— 能进项目，只有细节还能再抠；',
@@ -586,10 +594,24 @@ export function normalizeReport(raw, { count = 6, range = {}, frames = [], refer
   const dimensions = RUBRIC.map(entry => dimByKey.get(entry.key)
     || { key: entry.key, label: entry.label, score: null, note: '' });
   const graded = dimensions.filter(entry => entry.score !== null);
-  const total = graded.length ? Math.round(graded.reduce((sum, entry) => sum + entry.score, 0) / graded.length * 10) : null;
+    /* 总分：由它自己填的 pass / warn / fail 结论推导，不采信那个 0–10 的自由数字。
+       光给锚点治不住压缩 —— 模型可以一边写"只有两三条可改"、一边给 5 分。
+       推导之后分数可审计：报告里写出 x 通过 / y 有隐患 / z 不通过，判定有异议看那里。 */
+    const STATUS_SCORE = { pass: 10, warn: 6.5, fail: 2.5 };
+    const counted = rubric.filter(entry => STATUS_SCORE[entry.status] !== undefined);
+    const counts = {
+      pass: counted.filter(entry => entry.status === 'pass').length,
+      warn: counted.filter(entry => entry.status === 'warn').length,
+      fail: counted.filter(entry => entry.status === 'fail').length,
+      unknown: rubric.length - counted.length,
+    };
+    const total = counted.length
+      ? Math.round(counted.reduce((sum, entry) => sum + STATUS_SCORE[entry.status], 0) / counted.length * 10)
+      : (graded.length ? Math.round(graded.reduce((sum, entry) => sum + entry.score, 0) / graded.length * 10) : null);
   const grade = total === null ? '' : total >= 85 ? '优秀' : total >= 70 ? '良好' : total >= 55 ? '及格' : '待改进';
   const score = {
-    total, grade, dimensions,
+    total,
+      counts, grade, dimensions,
     strengths: strList(source.score?.strengths, 5),
     weaknesses: strList(source.score?.weaknesses, 5),
   };
