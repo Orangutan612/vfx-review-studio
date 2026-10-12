@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791813009362';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791813009362';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791813009362';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791813924699';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791813924699';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791813924699';
 
 const $ = id => document.getElementById(id);
 
@@ -162,8 +162,8 @@ async function loadFile(file) {
       + ' · ' + meta.total + ' 帧 · ' + (file.size / 1024 / 1024).toFixed(1) + ' MB';
 
     resetRange();
-    status(meta.duration > MAX_CLIP_SECONDS
-      ? '视频已就绪。先选一段不超过 ' + MAX_CLIP_SECONDS + ' 秒的连续画面，填好右侧需求，再开始评审。'
+    status(meta.duration > 15
+      ? '视频已就绪。选一段连续画面（选区越短越快越省，选区框下面会实时标出预计页数和档位），填好右侧需求再开始评审。'
       : '视频已就绪。填好右侧需求，就可以开始评审。');
   } catch (error) {
     video.removeAttribute('src');
@@ -176,11 +176,9 @@ async function loadFile(file) {
 
 /* ───────────────────────── 选区 ───────────────────────── */
 
-/** 单次评审的选区上限（秒）。为什么不做成"想多长就多长"：选区越长，逐帧解码出的接触表页数越多，
-    模型要读的图就越多 —— 耗时和费用会线性涨。30 秒是参考库片段一直在用的长度，管线本来就走得通。 */
-const MAX_CLIP_SECONDS = 30;
-/** 超过这个长度就提醒一句成本，但不拦。 */
-const COST_HINT_SECONDS = 20;
+/* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
+   代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
+import { estimateWork, describeWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791813924699';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -190,7 +188,7 @@ function validRange() {
   return $('range-start').value.trim() !== '' && $('range-end').value.trim() !== ''
     && Number.isFinite(start) && Number.isFinite(end)
     && start >= 0 && end <= videoDuration() + 0.001
-    && end - start >= 0.1 && end - start <= MAX_CLIP_SECONDS + 0.000001;
+    && end - start >= MIN_CLIP_SECONDS && end - start <= videoDuration() + 0.001;
 }
 
 function showRange() {
@@ -198,12 +196,13 @@ function showRange() {
   const span = end - start;
   const summary = $('range-summary');
   if (validRange()) {
-    summary.textContent = '只评审 ' + timeLabel(start) + ' — ' + timeLabel(end) + '，共 ' + timeLabel(span) + '。';
-    if (span > COST_HINT_SECONDS) summary.textContent += ' 选区较长：模型要读的接触表更多，耗时和费用也会明显增加。';
-  } else if (span > MAX_CLIP_SECONDS) {
-    summary.textContent = '当前选区 ' + timeLabel(span) + '，最长 ' + MAX_CLIP_SECONDS + ' 秒，请缩短选区。';
+    // 让用户看见代价：多少帧、多少页接触表、属于哪一档 —— 自己权衡选多长
+    summary.textContent = '只评审 ' + timeLabel(start) + ' — ' + timeLabel(end) + '，共 ' + timeLabel(span)
+      + ' · ' + describeWork(span) + '。';
+  } else if (span > videoDuration() + 0.001) {
+    summary.textContent = '选区超出了视频长度（共 ' + timeLabel(videoDuration()) + '），请缩短。';
   } else {
-    summary.textContent = '请选一段 0.1–' + MAX_CLIP_SECONDS + ' 秒的连续画面，起点要早于终点，且不能超出视频长度。';
+    summary.textContent = '请选一段 ' + MIN_CLIP_SECONDS + ' 秒以上的连续画面，起点要早于终点，且不能超出视频长度。';
   }
   summary.classList.toggle('error', !validRange());
   updateButtons();
