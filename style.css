@@ -104,13 +104,18 @@ label span{font-weight:400; color:var(--muted); font-size:13px; margin-left:6px}
    改成排除法，以后加 type=url / type=email 也不会再漏。 */
 input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=submit]):not([type=button]):not([type=reset]),
 select,textarea{
-  width:100%; padding:8px 10px; border:1px solid #d0d5dd; border-radius:9px;
+  width:100%; padding:8px 34px 8px 12px; border:1px solid #d0d5dd; border-radius:9px;
   background:var(--card); color:var(--ink); font:inherit; font-size:14px;
 }
 textarea{resize:vertical; line-height:1.6}
-input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #cfe0ff; outline-offset:0; border-color:var(--brand)}
+/* 聚焦只换边框色，**不画额外的方框** —— 文本框一聚焦必然命中 :focus-visible，
+   所以只要写了 outline，打字时就会一直顶着一个方框。 */
+input:focus,select:focus,textarea:focus,
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none; box-shadow:none; border-color:var(--brand)}
 /* 鼠标点/拖动滑杆、数字框时不再画那个方框（键盘 Tab 导航仍然有可见焦点） */
-input[type=range]:focus,input[type=range]:focus-visible,input[type=number]:focus,input[type=number]:focus-visible{outline:none}
+input[type=range]:focus,input[type=range]:focus-visible,
+input[type=number]:focus,input[type=number]:focus-visible,
+input[type=checkbox]:focus,input[type=checkbox]:focus-visible{outline:none; box-shadow:none}
 input[type=range]{width:100%; accent-color:var(--brand); margin:2px 0 10px}
 .help{font-size:13px; color:var(--muted); line-height:1.65; margin:6px 0}
 .help.error{color:var(--danger)}
@@ -140,8 +145,13 @@ input[type=range]{width:100%; accent-color:var(--brand); margin:2px 0 10px}
 .button.secondary:hover:not(:disabled){border-color:var(--brand); color:var(--brand)}
 .button:disabled{opacity:.5; cursor:not-allowed}
 .button.block{width:100%; margin-top:14px; padding:12px 18px; font-size:15px}
-.text-button{border:none; background:none; color:var(--brand); cursor:pointer; font-size:13px; padding:2px 4px; text-decoration:underline dotted}
-.text-button:disabled{opacity:.5; cursor:not-allowed}
+.text-button,.ghost-button{
+  border:1px solid var(--line); background:var(--surface-2); color:var(--ink-soft);
+  cursor:pointer; font-size:12.5px; font-weight:600; padding:6px 13px; border-radius:9px;
+  text-decoration:none; transition:.14s;
+}
+.text-button:hover,.ghost-button:hover{color:var(--ink); background:var(--card); border-color:var(--brand)}
+.text-button:disabled,.ghost-button:disabled{opacity:.5; cursor:not-allowed}
 
 /* ── 范围选择 ── */
 .range-panel{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0; background:var(--surface)}
@@ -964,3 +974,17 @@ video.flash{outline:3px solid var(--brand); outline-offset:2px}
 .lab-src.is-active{color:#fff;background:var(--brand);border-color:var(--brand);box-shadow:0 2px 10px rgba(47,111,237,.3)}
 .lab-src.is-active span{opacity:.85}
 @media (max-width:640px){.lab-sources{flex-direction:column}}
+
+/* ════ 选区代价标签（让人一眼看见"这段要读多少页"）════ */
+.cost-chip{
+  display:inline-flex;align-items:center;padding:3px 11px;border-radius:999px;
+  font-size:12px;font-weight:700;border:1px solid currentColor;background:transparent;
+  white-space:nowrap;letter-spacing:.01em;
+}
+.cost-chip[data-tier="省"]{color:#3fb950}
+.cost-chip[data-tier="标准"]{color:#58a6ff}
+.cost-chip[data-tier="偏高"]{color:#d29922}
+.cost-chip[data-tier="很重"]{color:#f85149}
+
+/* 下拉框统一：右侧给小三角留足空间，别贴着边框 */
+select{padding-right:34px; background-position:right 10px center}
