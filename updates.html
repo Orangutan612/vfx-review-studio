@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791816444159"></script>
-<script src="./update-check.js?v=1791816444159"></script>
+<script src="./frame-guard.js?v=1791817968201"></script>
+<script src="./update-check.js?v=1791817968201"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791816444159">
+<link rel="stylesheet" href="./style.css?v=1791817968201">
 </head>
 <body>
 
@@ -47,10 +47,23 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.7</h1>
+    <h1>v1.4.8</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.8</h2><span class="ws-dim">评分有了尺子</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：分数没有统一的尺子</b><span>以前提示词里对评分只有一句"各给 0–10 分、不要一律给中间分糊弄"，<b>没有定义"几分算好"</b>。模型只好自己立一把 —— 而大模型天然拿"电影级 / 3A"当满分基准，于是<b>像样的练习作品也会被压到 5 分上下、总分 50 出头</b>。现在明确写出锚点：<b>9–10 商业上线水准 · 7–8 专业可用 · 5–6 合格偏上 · 3–4 问题明显 · 0–2 基本没成立</b>；并写死基准：<b>没给参考时，以「同类个人练习 / 独立项目的良好水平」为 6–7 分中位</b>，不许拿 3A 当满分基准；分数还必须和你写出的建议一致（通篇只说得出两三条可改的地方，就不该给 5 分）。</span></li>
+        <li><b>分数旁边直接写出"什么水平"</b><span>报告里那个数字不再是孤零零的 51 分 —— 现在会带上档位（商业上线水准 / 专业可用 / 合格偏上 / 问题明显 / 基本没成立），而且<b>档位文字和颜色用的是同一套阈值（90 / 70 / 50 / 30）</b>（以前颜色阈值是 85/70/55，和文字标签对不上，自己打架）。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.7</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.7</h2><span class="ws-dim">修换片子报错 + 删除按钮</span></div>
