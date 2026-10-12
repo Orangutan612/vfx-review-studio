@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791824404307"></script>
-<script src="./update-check.js?v=1791824404307"></script>
+<script src="./frame-guard.js?v=1791825644761"></script>
+<script src="./update-check.js?v=1791825644761"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791824404307">
+<link rel="stylesheet" href="./style.css?v=1791825644761">
 </head>
 <body>
 
@@ -47,10 +47,25 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.16</h1>
+    <h1>v1.4.17</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.17</h2><span class="ws-dim">参考区间：输入即生效</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：填了参考区间，报告里却还是 0.00 秒</b><span>原因是我要求你点「用这一段」才保存 —— <b>输入完勾上勾以为生效了</b>，实际用的还是默认整段。<b>这是我的设计错</b>。现在：<b>输入即生效</b>（离开输入框或按回车就保存），勾选时也会兜底保存一次。原来那个按钮改名「<b>立即生效</b>」，它现在的意思是"马上按这段解码看一眼"，不再是"不点它就不算数"。</span></li>
+        <li><b>明确写出"本次到底用哪一段"</b><span>区间下面那行现在是结论式的：<b>✓ 本次评审将参考 12.0–40.0 秒（共 28.0 秒 / 片长 80.8 秒）</b>；如果填了但还没生效，会变成橙色的 <b>⚠ 未生效：点一下输入框外或按回车即生效 →</b>。让你一眼能确认，不用猜。</span></li>
+        <li><b>「整段」和「选区间」分得很清楚</b><span>「整段」= 一键取 0 到片尾；两个数字框 = 你自己指定的区间。两者都会立刻写进"本次将参考"那一行。</span></li>
+        <li><b>数字框去掉了上下小箭头</b><span>既然能直接输入，那对箭头只是白占空间还容易被误点 —— 已去掉（并顺手把宽度还给数字）。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.16</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.16</h2><span class="ws-dim">刷新回到原状</span></div>
