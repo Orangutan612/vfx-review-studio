@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791815283139"></script>
-<script src="./update-check.js?v=1791815283139"></script>
+<script src="./frame-guard.js?v=1791816444159"></script>
+<script src="./update-check.js?v=1791816444159"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791815283139">
+<link rel="stylesheet" href="./style.css?v=1791816444159">
 </head>
 <body>
 
@@ -47,10 +47,23 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.6</h1>
+    <h1>v1.4.7</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.7</h2><span class="ws-dim">修换片子报错 + 删除按钮</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：换个视频就报「支持最长 2 分钟」</b><span>不是新旧视频时长相加 —— 是<b>读时长的办法不可靠</b>：容器里有两个 timescale（movie / media），不同软件导出的片子这两个值经常不一致，一除就差几十倍，30 秒被算成几十分钟。现在<b>以浏览器自己解出的时长为准</b>，容器值只在读不到时兜底，这类文件从此不会误判。</span></li>
+        <li><b>作品区加了「删除」按钮（新）</b><span>选错了或不想评了，点一下就把视频移掉，退回"还没选作品"的样子（同时释放掉本地视频占的内存）。「换一个视频」旁边就是它。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.6</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.6</h2><span class="ws-dim">界面细节</span></div>
