@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791822328626';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791822328626';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791822328626';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791823158551';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791823158551';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791823158551';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791822328626';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791823158551';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -669,11 +669,14 @@ function renderReferences() {
     const row = document.createElement('div');
     row.className = 'reference-row';
 
+    // 勾选 = 这次评审用它当参照（不是"导入状态"）
     const box = document.createElement('input');
     box.type = 'checkbox';
+    box.className = 'reference-check';
     box.value = item.name;
+    box.title = '勾上就用它当本次评审的参照';
     box.addEventListener('change', () => {
-      const checked = [...list.querySelectorAll('input:checked')]
+      const checked = [...list.querySelectorAll('input[type=checkbox]:checked')]
         .map(input => referenceFiles.find(entry => entry.name === input.value))
         .filter(Boolean);
       const videos = checked.filter(entry => entry.kind !== 'image').length;
@@ -687,25 +690,35 @@ function renderReferences() {
       }
     });
 
-    const name = document.createElement('span');
-      const meta = item.kind !== 'image' ? readRefMeta(item.name) : null;
-      if (item.kind !== 'image') {
-        const thumb = document.createElement('img');
-        thumb.className = 'reference-thumb';
-        thumb.alt = '';
-        if (meta && meta.thumb) thumb.src = meta.thumb; else thumb.classList.add('is-empty');
-        row.append(thumb);
-      }
+    const meta = item.kind !== 'image' ? readRefMeta(item.name) : null;
+
+    const thumb = document.createElement('img');
+    thumb.className = 'reference-thumb';
+    thumb.alt = '';
+    if (meta && meta.thumb) thumb.src = meta.thumb;
+    else thumb.classList.add('is-empty');
+
+    // 第二列：文件名 + 规格，竖着排，过长省略而不是撑破容器
+    const info = document.createElement('span');
+    info.className = 'reference-info';
+    const name = document.createElement('b');
     name.className = 'reference-name';
     name.textContent = item.name;
     name.title = item.name;
+    const kind = document.createElement('span');
+    kind.className = 'reference-kind ' + (item.kind === 'image' ? 'is-image' : 'is-video');
+    kind.textContent = (item.kind === 'image' ? '图片 · ' : '视频 · ') + (item.size / 1024 / 1024).toFixed(1) + ' MB'
+      + (meta && meta.duration ? ' · 时长 ' + meta.duration.toFixed(1) + ' 秒' : (item.kind === 'image' ? '' : ' · 时长未知'));
+    info.append(name, kind);
 
-    const size = document.createElement('span');
-
-    size.className = 'reference-size reference-kind ' + (item.kind === 'image' ? 'is-image' : 'is-video');
-      size.textContent = (item.kind === 'image' ? '图片 · ' : '视频 · ') + (item.size / 1024 / 1024).toFixed(1) + ' MB'
-        + (meta && meta.duration ? ' · 时长 ' + meta.duration.toFixed(1) + ' 秒' : (item.kind === 'image' ? '' : ' · 时长未知，点「读取这一段」确认'));
-
+    const acts = document.createElement('span');
+    acts.className = 'reference-acts';
+    const look = document.createElement('button');
+    look.type = 'button';
+    look.className = 'row-action';
+    look.textContent = '预览';
+    look.title = '点开确认添加对没有';
+    look.addEventListener('click', () => previewReference({ kind: item.kind, name: item.name }));
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'row-action danger';
@@ -716,99 +729,92 @@ function renderReferences() {
       await loadReferences();
       status('已从参考库移除 ' + item.name + '。');
     });
+    acts.append(look, remove);
 
-    const look = document.createElement('button');
-    look.type = 'button';
-    look.className = 'row-action';
-    look.textContent = '预览';
-    look.title = '点开确认添加对没有';
-    look.setAttribute('aria-label', '预览 ' + item.name);
-    look.addEventListener('click', () => previewReference({ kind: item.kind, name: item.name }));
+    row.append(box, thumb, info, acts);
 
-      if (item.kind !== 'image') {
-        const wrap = document.createElement('span');
-        wrap.className = 'reference-range';
-        const saved = refRangeFor(item.name, NaN);
-        const known = meta && meta.duration ? meta.duration : NaN;   // 片长（抽预览图时记下的），用来限制上限、写人话摘要
-        const mk = (cls, value) => {
-          const input = document.createElement('input');
-          input.type = 'number'; input.min = '0'; input.step = '0.5'; input.className = cls;
-          if (Number.isFinite(known)) input.max = String(Math.ceil(known));
-          input.value = String(value);
-          return input;
-        };
-        const from = mk('ref-range-start', saved.start);
-        const to = mk('ref-range-end', saved.end);
-        const tip = document.createElement('span');
-        tip.className = 'reference-range-tip';
-        tip.textContent = '–';
-        const useBtn = document.createElement('button');
-        useBtn.type = 'button';
-        useBtn.className = 'row-action';
-        useBtn.textContent = '用这一段';
-        useBtn.title = '下次评审按这个区间解码这段参考（超过片长会自动截到片尾）';
-        useBtn.addEventListener('click', () => {
-          const start = Number(from.value) || 0;
-          const end = Number(to.value) || 0;
-          if (!(end - start > 0.1)) { status('参考区间里，终点要比起码点大 0.1 秒。', true); return; }
-          saveRefRange(item.name, start, end);
-          status('参考「' + item.name + '」本次取 ' + start.toFixed(1) + '–' + end.toFixed(1) + ' 秒（下次评审生效）。');
-        });
-        const readBtn = document.createElement('button');
-        readBtn.type = 'button';
-        readBtn.className = 'row-action';
-        readBtn.textContent = '读取这一段';
-        readBtn.title = '马上按这个区间解码一次，先看看抽出来的是不是你要的那一下';
-        readBtn.addEventListener('click', async () => {
-          if (state.busy) return;
-          const start = Number(from.value) || 0;
-          const end = Number(to.value) || 0;
-          if (!(end - start > 0.1)) { status('参考区间里，终点要比起码点大 0.1 秒。', true); return; }
-          saveRefRange(item.name, start, end);
-          setBusy(true);
-          status('正在读取参考「' + item.name + '」的 ' + start.toFixed(1) + '–' + end.toFixed(1) + ' 秒……');
-          try {
-            const blob = await (await fetch('/reference/' + encodeURIComponent(item.name))).blob();
-            const file = new File([blob], item.name, { type: blob.type || 'video/mp4' });
-            const meta = await inspectVideo(file);
-            const range = refRangeFor(item.name, meta.duration);
-            const decoded = await decodeSequence(file, range, () => {}, {
-              mode: 'sheets', series: true, emitSamples: true,
-              sampleEverySeconds: Math.max(1, (range.end - range.start) / 12), sampleLimit: 12,
-            });
-            previewReference({ kind: 'video', name: item.name, sheets: pickSheets(decoded.sheets || []),
-              note: '这是你选的 ' + range.start.toFixed(1) + '–' + range.end.toFixed(1) + ' 秒（每格 1/30 秒）。' });
-            status('已按 ' + range.start.toFixed(1) + '–' + range.end.toFixed(1) + ' 秒读出参考「' + item.name + '」。');
-          } catch (error) {
-            status('读取参考失败：' + (error && error.message ? error.message : error), true);
-          } finally { setBusy(false); }
-        });
-        const whole = document.createElement('button');
-        whole.type = 'button';
-        whole.className = 'row-action';
-        whole.textContent = '整段';
-        whole.title = '从 0 秒取到片尾';
-        whole.addEventListener('click', () => {
-          from.value = '0';
-          const known = readRefMeta(item.name)?.duration;
-          to.value = Number.isFinite(known) ? String(Math.round(known * 10) / 10) : '120';
-        });
-        const summary = document.createElement('span');
-        summary.className = 'reference-range-tip';
-        const refresh = () => {
-          const a = Number(from.value) || 0, b = Number(to.value) || 0;
-          const len = b - a;
-          summary.textContent = Number.isFinite(known)
-            ? '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒（共 ' + len.toFixed(1) + ' 秒 / 片长 ' + known.toFixed(1) + ' 秒）'
-            : '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒';
-        };
-        from.addEventListener('input', refresh);
-        to.addEventListener('input', refresh);
-        refresh();
-        wrap.append(from, tip, to, whole, useBtn, readBtn, summary);
-        row.append(wrap);
-      }
-    row.append(box, name, size, look, remove);
+    if (item.kind !== 'image') {
+      // 第三行（占满整行）：取用区间。挤在第一行里必然难看，独立一行最清楚。
+      const bar = document.createElement('div');
+      bar.className = 'reference-range';
+      const known = meta && meta.duration ? meta.duration : NaN;
+      const mk = (cls, value) => {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.step = '0.5';
+        input.className = cls;
+        if (Number.isFinite(known)) input.max = String(Math.ceil(known));
+        input.value = String(value);
+        return input;
+      };
+      const saved = refRangeFor(item.name, known);
+      const from = mk('ref-range-start', saved.start);
+      const to = mk('ref-range-end', Number.isFinite(known) ? Math.min(saved.end, known) : saved.end);
+      const dash = document.createElement('span');
+      dash.className = 'reference-range-tip';
+      dash.textContent = '–';
+      const whole = document.createElement('button');
+      whole.type = 'button';
+      whole.className = 'row-action';
+      whole.textContent = '整段';
+      whole.addEventListener('click', () => {
+        from.value = '0';
+        to.value = Number.isFinite(known) ? String(Math.round(known * 10) / 10) : '120';
+        from.dispatchEvent(new Event('input'));
+      });
+      const useBtn = document.createElement('button');
+      useBtn.type = 'button';
+      useBtn.className = 'row-action';
+      useBtn.textContent = '用这一段';
+      useBtn.addEventListener('click', () => {
+        const a = Number(from.value) || 0, b = Number(to.value) || 0;
+        if (!(b - a > 0.1)) { status('终点要比起点的至少大 0.1 秒。', true); return; }
+        saveRefRange(item.name, a, b);
+        status('参考「' + item.name + '」本次取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒（下次评审生效）。');
+      });
+      const readBtn = document.createElement('button');
+      readBtn.type = 'button';
+      readBtn.className = 'row-action';
+      readBtn.textContent = '读取这一段';
+      readBtn.title = '马上按这个区间解码一次，先看抽出来的是不是你要的那一下';
+      readBtn.addEventListener('click', async () => {
+        if (state.busy) return;
+        const a = Number(from.value) || 0, b = Number(to.value) || 0;
+        if (!(b - a > 0.1)) { status('终点要比起点的至少大 0.1 秒。', true); return; }
+        saveRefRange(item.name, a, b);
+        setBusy(true);
+        status('正在读取参考「' + item.name + '」的 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒……');
+        try {
+          const blob = await (await fetch('/reference/' + encodeURIComponent(item.name))).blob();
+          const file = new File([blob], item.name, { type: blob.type || 'video/mp4' });
+          const info2 = await inspectVideo(file);
+          const range = refRangeFor(item.name, info2.duration);
+          const decoded = await decodeSequence(file, range, () => {}, {
+            mode: 'sheets', series: true, emitSamples: true,
+            sampleEverySeconds: Math.max(1, (range.end - range.start) / 12), sampleLimit: 12,
+          });
+          previewReference({ kind: 'video', name: item.name, sheets: pickSheets(decoded.sheets || []),
+            note: '这是你选的 ' + range.start.toFixed(1) + '–' + range.end.toFixed(1) + ' 秒（每格 1/30 秒）。' });
+          status('已按 ' + range.start.toFixed(1) + '–' + range.end.toFixed(1) + ' 秒读出参考「' + item.name + '」。');
+        } catch (error) {
+          status('读取参考失败：' + (error && error.message ? error.message : error), true);
+        } finally { setBusy(false); }
+      });
+      const summary = document.createElement('span');
+      summary.className = 'reference-range-summary';
+      const refresh = () => {
+        const a = Number(from.value) || 0, b = Number(to.value) || 0;
+        summary.textContent = Number.isFinite(known)
+          ? '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒（共 ' + (b - a).toFixed(1) + ' 秒 / 片长 ' + known.toFixed(1) + ' 秒）'
+          : '取 ' + a.toFixed(1) + '–' + b.toFixed(1) + ' 秒';
+      };
+      from.addEventListener('input', refresh);
+      to.addEventListener('input', refresh);
+      refresh();
+      bar.append(from, dash, to, whole, useBtn, readBtn, summary);
+      row.append(bar);
+    }
     list.appendChild(row);
   }
 }
