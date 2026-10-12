@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791821628743"></script>
-<script src="./update-check.js?v=1791821628743"></script>
+<script src="./frame-guard.js?v=1791822328626"></script>
+<script src="./update-check.js?v=1791822328626"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791821628743">
+<link rel="stylesheet" href="./style.css?v=1791822328626">
 </head>
 <body>
 
@@ -47,10 +47,24 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.12</h1>
+    <h1>v1.4.13</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.13</h2><span class="ws-dim">参考库终于真的能用</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：参考库的列表根本渲染不出来</b><span>上一版给参考项加区间控件时留下一处<b>未定义的变量</b>，渲染每个视频参考时直接抛异常 —— 结果就是：<b>列表空白、上传像卡住、区间控件当然也看不见</b>。三件事是同一个原因。已修，并用<b>端到端测试</b>（走你选文件那条真实路径）验证：行出来了、区间控件在、状态正常收尾。</span></li>
+        <li><b>上传过程有实时文字了</b><span>以前点完就一句"正在存入参考库……"干等。现在会依次显示：<b>正在读取时长与预览图</b> → <b>正在存入参考库（32.5 MB）</b> → <b>参考库已更新</b>；大文件还会每秒刷新"已用 N 秒"。</span></li>
+        <li><b>缩略图和时长这回真的会出现了</b><span>上一版写了抽帧逻辑却<b>没真的调用</b>（只定义了函数）。现在加入参考时会真的抽一帧并记下时长，行上显示「视频 · 32.5 MB · 时长 80.8 秒」。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.12</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.12</h2><span class="ws-dim">参考库看得见了</span></div>
