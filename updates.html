@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791817968201"></script>
-<script src="./update-check.js?v=1791817968201"></script>
+<script src="./frame-guard.js?v=1791820834604"></script>
+<script src="./update-check.js?v=1791820834604"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791817968201">
+<link rel="stylesheet" href="./style.css?v=1791820834604">
 </head>
 <body>
 
@@ -47,10 +47,49 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.8</h1>
+    <h1>v1.4.11</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.11</h2><span class="ws-dim">评分可审计 + 不许臆断</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>分数不再由模型"感觉"给</b><span>上一版给了评分锚点，实测<b>还是压分</b>（模型可以一边写"只有两三条可改"、一边给 5 分）。现在总分改成<b>由它自己的 pass / warn / fail 结论推导</b>（通过 10 · 有隐患 6.5 · 不通过 2.5，看不清不计入），并在报告里写出<b>判定依据</b>：「x 项通过 · y 项有隐患 · z 项不通过」。<b>判定有异议，就去看那几条结论</b> —— 分数从黑箱数字变成可追查的结果。</span></li>
+        <li><b>明令禁止臆断（硬要求）</b><span>每条结论和每条建议都必须绑定<b>画面证据</b>（时刻 + 部位 + 现象）或<b>实算数值</b>（亮度 / mo 的具体数字）；禁止"我觉得 / 应该是 / 大概作者想 / 风格问题"这类没有依据的说法；拿不准的写进"证据边界"。<b>看不到引擎参数、帧率、制作过程，就不许推测</b>。</span></li>
+        <li><b>参考区间可以马上看效果</b><span>「用这一段」旁边多了「<b>读取这一段</b>」—— 立即按你选的区间解码一次并预览，先确认抽出来的是你要那一下，再开始评审。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.10</h2>
+
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.10</h2><span class="ws-dim">参考可以选段了</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>参考视频可以指定用哪一段（新）</b><span>以前参考视频一律从 <b>0 秒</b>开始取（最长 2 分钟）—— 一个大招 80 秒，真正想对照的那一下往往在中间。现在参考库里每个视频后面有一对<b>起点 / 终点</b>输入框 + 「用这一段」，填好点一下，<b>下次评审就按这段解码</b>。区间存在本机，改区间不用重新上传。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.9</h2>
+
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.9</h2><span class="ws-dim">修时长误判 + 参考放宽</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：29 秒的视频被说成"超过 2 分钟"、80 秒的参考被说成"太短"</b><span>同一个原因：有些导出软件把 MP4 里 <code>mdhd.duration</code> 写成 <b>0</b>，而程序只看了这一个字段，于是时长算成 0 或被除小。<b>两个方向相反的报错，其实是同一处读错数</b>。现在按可信度取第一个合理的值：<b>mvhd → tkhd → mdhd</b>；主视频再用浏览器解出的时长兜底交叉验证。</span></li>
+        <li><b>参考片段上限 30 → 120 秒</b><span>以前参考视频最多取前 30 秒，长镜头（比如一个大招 80 秒）只能看到开头。现在和作品一样放到 2 分钟。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.8</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.8</h2><span class="ws-dim">评分有了尺子</span></div>
