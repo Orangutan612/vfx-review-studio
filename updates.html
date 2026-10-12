@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791813009362"></script>
-<script src="./update-check.js?v=1791813009362"></script>
+<script src="./frame-guard.js?v=1791813924699"></script>
+<script src="./update-check.js?v=1791813924699"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791813009362">
+<link rel="stylesheet" href="./style.css?v=1791813924699">
 </head>
 <body>
 
@@ -47,20 +47,25 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.4</h1>
-    <p class="upd-lead">选区上限从 15 秒放宽到 <strong>30 秒</strong> —— 一段完整的爆炸或技能演出，不用再硬切成两半。</p>
+    <h1>v1.4.5</h1>
+    <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
 
   <section class="ws-card upd-card">
-    <div class="ws-card-head"><h2>本次 · v1.4.4</h2><span class="ws-dim">选区放宽</span></div>
+    <div class="ws-card-head"><h2>本次 · v1.4.5</h2><span class="ws-dim">选区自由 + 代价可见</span></div>
     <div class="ws-card-body">
       <ul class="upd-list">
-        <li><b>选区上限 15 → 30 秒</b><span>以前最多只能选 15 秒，一段完整的爆炸或技能演出经常要硬切成两半。现在到 <b>30 秒</b>（和参考库片段一个长度）。选区超过 20 秒时页面会提醒一句：模型要读的接触表更多，<b>耗时和费用也会明显增加</b> —— 提醒但不拦你。</span></li>
+        <li><b>选区不再限长</b><span>原来是 <b>15 秒</b>的死上限（一段完整的爆炸或技能演出经常要切成两半）。现在<b>不设人为上限</b> —— 能选多长由视频本身决定（上传上限 2 分钟），整段丢进去评也行。</span></li>
+        <li><b>代价实时算给你看（新）</b><span>选区越长、模型要读的接触表页数越多，耗时和费用就越高 —— 这是事实，与其一刀切替你决定，不如<b>标清楚让你自己权衡</b>。拖动选区时下面实时显示：<b>约多少帧 / 多少页接触表 / 属于哪一档</b> —— <b>省</b>（≤15 秒，约 19 页内）· <b>标准</b>（≤30 秒，约 38 页）· <b>偏高</b>（≤60 秒，约 75 页）· <b>很重</b>（整片级别，上百页）。</span></li>
       </ul>
     </div>
   </section>
 
+  <h2 class="upd-sep">上一版 · v1.4.3</h2>
+
+
+  
   <h2 class="upd-sep">上一版 · v1.4.3</h2>
 
   <section class="ws-card upd-card">
