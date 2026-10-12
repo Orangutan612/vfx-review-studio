@@ -20,7 +20,9 @@ const Lib = globalThis.MP4Box;
 const DataStream = globalThis.DataStream;
 
 /** 评审选区上限（秒）。这是产品口径，前端会先拦一次，这里再拦一次只是省一次白解码。 */
-export const MAX_RANGE_SECONDS = 15;
+/** 选区上限（秒）。**不再人为设死**：能选多长由视频本身决定（上传上限 2 分钟）。
+    值留 120 只是兜底，真正的硬闸是下面的源帧数上限（内存与耗时）。 */
+export const MAX_RANGE_SECONDS = 120;
 /** 解码兜底：选区内的源帧数上限（7200 = 60fps × 120s）。 */
 export const MAX_SOURCE_FRAMES = 7200;
 /** 数值序列条数上限，必须与 MAX_SOURCE_FRAMES 同值，否则序列会比帧闸更早截断。 */
