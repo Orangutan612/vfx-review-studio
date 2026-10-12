@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791817968201';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791817968201';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791817968201';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791820834604';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791820834604';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791820834604';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791817968201';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791820834604';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -716,6 +716,65 @@ function renderReferences() {
     look.setAttribute('aria-label', '预览 ' + item.name);
     look.addEventListener('click', () => previewReference({ kind: item.kind, name: item.name }));
 
+      if (item.kind !== 'image') {
+        const wrap = document.createElement('span');
+        wrap.className = 'reference-range';
+        const saved = refRangeFor(item.name, NaN);
+        const mk = (cls, value) => {
+          const input = document.createElement('input');
+          input.type = 'number'; input.min = '0'; input.step = '0.5'; input.className = cls;
+          input.value = String(value);
+          return input;
+        };
+        const from = mk('ref-range-start', saved.start);
+        const to = mk('ref-range-end', saved.end);
+        const tip = document.createElement('span');
+        tip.className = 'reference-range-tip';
+        tip.textContent = '–';
+        const useBtn = document.createElement('button');
+        useBtn.type = 'button';
+        useBtn.className = 'row-action';
+        useBtn.textContent = '用这一段';
+        useBtn.title = '下次评审按这个区间解码这段参考（超过片长会自动截到片尾）';
+        useBtn.addEventListener('click', () => {
+          const start = Number(from.value) || 0;
+          const end = Number(to.value) || 0;
+          if (!(end - start > 0.1)) { status('参考区间里，终点要比起码点大 0.1 秒。', true); return; }
+          saveRefRange(item.name, start, end);
+          status('参考「' + item.name + '」本次取 ' + start.toFixed(1) + '–' + end.toFixed(1) + ' 秒（下次评审生效）。');
+        });
+        const readBtn = document.createElement('button');
+        readBtn.type = 'button';
+        readBtn.className = 'row-action';
+        readBtn.textContent = '读取这一段';
+        readBtn.title = '马上按这个区间解码一次，先看看抽出来的是不是你要的那一下';
+        readBtn.addEventListener('click', async () => {
+          if (state.busy) return;
+          const start = Number(from.value) || 0;
+          const end = Number(to.value) || 0;
+          if (!(end - start > 0.1)) { status('参考区间里，终点要比起码点大 0.1 秒。', true); return; }
+          saveRefRange(item.name, start, end);
+          setBusy(true);
+          status('正在读取参考「' + item.name + '」的 ' + start.toFixed(1) + '–' + end.toFixed(1) + ' 秒……');
+          try {
+            const blob = await (await fetch('/reference/' + encodeURIComponent(item.name))).blob();
+            const file = new File([blob], item.name, { type: blob.type || 'video/mp4' });
+            const meta = await inspectVideo(file);
+            const range = refRangeFor(item.name, meta.duration);
+            const decoded = await decodeSequence(file, range, () => {}, {
+              mode: 'sheets', series: true, emitSamples: true,
+              sampleEverySeconds: Math.max(1, (range.end - range.start) / 12), sampleLimit: 12,
+            });
+            previewReference({ kind: 'video', name: item.name, sheets: pickSheets(decoded.sheets || []),
+              note: '这是你选的 ' + range.start.toFixed(1) + '–' + range.end.toFixed(1) + ' 秒（每格 1/30 秒）。' });
+            status('已按 ' + range.start.toFixed(1) + '–' + range.end.toFixed(1) + ' 秒读出参考「' + item.name + '」。');
+          } catch (error) {
+            status('读取参考失败：' + (error && error.message ? error.message : error), true);
+          } finally { setBusy(false); }
+        });
+        wrap.append(from, tip, to, useBtn, readBtn);
+        row.append(wrap);
+      }
     row.append(box, name, size, look, remove);
     list.appendChild(row);
   }
@@ -730,8 +789,27 @@ function renderReferences() {
  * 实现上刻意不落盘成视频文件：录下来再解码要多绕一大圈（还要面对 webm 编解码），
  * 直接按 1/30 秒采样、现场拼接触表 + 算运动强度，产出的东西和 decodeSequence 完全同构。
  */
-const REFERENCE_MAX_SECONDS = 30;
+const REFERENCE_MAX_SECONDS = 120;   // 参考片段最长 2 分钟（和作品一致；以前卡 30 秒，长镜头只能看个开头）
 const REFERENCE_MAX_SHEETS = 8;
+
+/* ── 参考片段的取用区间 ──
+   为什么按名字存本机：参考视频解一次要几秒到几十秒，用户往往只想参考其中一段（比如大招那一下）。
+   存起来之后，改区间不需要重新上传，下次评审按新区间解码。 */
+const refRangeKey = name => 'vfx-ref-range:' + name;
+function refRangeFor(name, duration) {
+  const known = Number.isFinite(duration) && duration > 0;
+  const fallbackEnd = known ? Math.min(REFERENCE_MAX_SECONDS, duration) : REFERENCE_MAX_SECONDS;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(refRangeKey(name)) || 'null'); } catch { saved = null; }
+  let start = saved && Number.isFinite(saved.start) ? Math.max(0, saved.start) : 0;
+  let end = saved && Number.isFinite(saved.end) ? saved.end : fallbackEnd;
+  if (known) { start = Math.min(start, duration); end = Math.min(end, duration); }
+  if (!(end - start > 0.1)) return { start: 0, end: fallbackEnd };   // 存坏了就退回默认
+  return { start, end };
+}
+function saveRefRange(name, start, end) {
+  try { localStorage.setItem(refRangeKey(name), JSON.stringify({ start: Math.max(0, start), end: Math.max(0, end) })); } catch {}
+}
 
 function pickSheets(list, max = REFERENCE_MAX_SHEETS) {
   if (!Array.isArray(list) || list.length <= max) return list || [];
@@ -1468,9 +1546,11 @@ async function loadSelectedReferences() {
       const file = new File([blob], name, { type: blob.type || 'video/mp4' });
       const meta = await inspectVideo(file);
       // 长特效动辄十几二十秒，取 3 秒根本看不出节奏 —— 放到 30 秒，再均匀取样控制体积
-      const end = Math.min(REFERENCE_MAX_SECONDS, meta.duration);
-      if (!(end > 0.1)) { status('参考「' + name + '」太短，已跳过。', true); continue; }
-      const decoded = await decodeSequence(file, { start: 0, end }, () => {}, {
+        const range = refRangeFor(name, meta.duration);   // 用户选的区间；没选就是整段（上限 120 秒）
+        if (range.end > meta.duration) range.end = meta.duration;
+        const end = range.end;
+        if (!(range.end - range.start > 0.1)) { status('参考「' + name + '」这一段没有可用帧，已跳过。', true); continue; }
+        const decoded = await decodeSequence(file, range, () => {}, {
         mode: 'sheets', series: true, emitSamples: true, sampleEverySeconds: Math.max(1, end / 12), sampleLimit: 12,
       });
       const manifest = decoded.sourceManifest;
@@ -1479,7 +1559,7 @@ async function loadSelectedReferences() {
         const last = manifest[unit.sourceFrames[unit.sourceFrames.length - 1]];
         return { image: unit.image, width: unit.width, height: unit.height, start: first.time, end: last.time + last.duration };
       });
-      out.push({ name, kind: 'video', range: { start: 0, end }, sheets: pickSheets(mapped), samples: decoded.samples || [], series: decoded.series });
+      out.push({ name, kind: 'video', range, sheets: pickSheets(mapped), samples: decoded.samples || [], series: decoded.series });
     } catch (error) {
       status('参考「' + name + '」解码失败：' + error.message, true);
     }
