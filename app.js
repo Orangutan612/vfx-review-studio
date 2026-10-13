@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791827165322';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791827165322';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791827165322';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791897137796';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791897137796';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791897137796';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791827165322';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791897137796';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
@@ -1633,6 +1633,16 @@ async function fillSamplesFromSheets(references) {
  * 模型看不了视频，所以参考必须和作品一样先压成接触表 + 数值，
  * 否则就成了「接触表 vs 记忆里的视频」，那还是凭印象。
  */
+  /* 参考库里有素材、却一个都没勾选 —— 报告里会出现「未提供参考标杆」，用户会以为是 bug。
+     所以开评前直接说清，并给一句可操作的提示。 */
+  function warnUnselectedReferences() {
+    if (!referenceFiles.length) return;
+    const checked = document.querySelectorAll('#reference-list input[type=checkbox]:checked').length
+      + document.querySelectorAll('#reference-captured input[type=checkbox]:checked').length;
+    if (checked) return;
+    status('参考库里有 ' + referenceFiles.length + ' 个素材，但你没勾选任何参考 —— 这次评审不会做对照。要对照就先勾上它。', true);
+  }
+
 async function loadSelectedReferences() {
   const out = [];
   // 本次录屏的已经在内存里解码好了，直接用
