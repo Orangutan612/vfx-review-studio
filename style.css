@@ -1038,3 +1038,80 @@ select{padding-right:34px; background-position:right 10px center}
 .reference-range input[type=number]::-webkit-outer-spin-button,
 .reference-range input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .reference-range-summary.is-pending{color:#d29922;font-weight:600}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   视觉升级 —— 参照「深色柔光背景 + 干净卡片 + 大留白 + 一个明确主按钮」的思路。
+   做法：只加这一层覆盖，不改既有布局；两套主题都走变量，所以白天/夜间一致。
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  --radius:16px;
+  --card-shadow:0 1px 2px rgba(16,24,40,.05), 0 14px 36px -14px rgba(16,24,40,.20);
+  --ring:0 0 0 3px rgba(47,111,237,.16);
+  --hairline:rgba(255,255,255,.06);
+}
+[data-theme="dark"]{
+  --card-shadow:0 1px 2px rgba(0,0,0,.55), 0 20px 52px -20px rgba(0,0,0,.8);
+  --ring:0 0 0 3px rgba(96,150,255,.24);
+  --hairline:rgba(255,255,255,.07);
+}
+
+/* 背景柔光：紫 → 蓝 → 青。
+   ⚠ 必须画在 body 自己的背景上 —— 用 z-index:-1 的伪元素会被 body 的不透明底色整个盖住（踩过）。 */
+body{
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(58% 44% at 10% -4%, rgba(126,94,255,.34), transparent 62%),
+    radial-gradient(48% 38% at 92% 6%, rgba(58,132,255,.24), transparent 64%),
+    radial-gradient(72% 52% at 50% 110%, rgba(22,178,188,.20), transparent 62%);
+  background-attachment:fixed;
+}
+[data-theme="light"] body{
+  background-image:
+    radial-gradient(58% 44% at 10% -4%, rgba(126,94,255,.17), transparent 62%),
+    radial-gradient(48% 38% at 92% 6%, rgba(58,132,255,.13), transparent 64%),
+    radial-gradient(72% 52% at 50% 110%, rgba(22,178,188,.11), transparent 62%);
+}
+
+/* 卡片：更大圆角、一道极细高光、柔和投影 */
+.ws-card,.panel,.upd-card,.reference-row,.preview-card,.setup-card{
+  border-radius:var(--radius);
+  border:1px solid var(--line);
+  box-shadow:var(--card-shadow);
+}
+[data-theme="dark"] .ws-card,[data-theme="dark"] .panel,
+[data-theme="dark"] .upd-card,[data-theme="dark"] .reference-row{
+  background-image:linear-gradient(180deg, var(--hairline), transparent 42%);
+}
+
+/* 主按钮：明确、饱满、有一点呼吸感 */
+.button.primary,#run,.button[type=submit]{
+  border-radius:12px;font-weight:650;letter-spacing:.01em;border-color:transparent;
+  background:linear-gradient(180deg,#3b82f6,#2563eb);color:#fff;
+  box-shadow:0 10px 22px -10px rgba(37,99,235,.75);
+  transition:filter .15s, transform .06s, box-shadow .15s;
+}
+.button.primary:hover,#run:hover,.button[type=submit]:hover{ filter:brightness(1.06); box-shadow:0 12px 26px -10px rgba(37,99,235,.85) }
+.button.primary:active,#run:active,.button[type=submit]:active{ transform:translateY(1px) }
+
+/* 次级按钮 / 小按钮：轻一点、圆一点 */
+.button.secondary,.button.small,.chip-button,.row-action,.ghost-button{
+  border-radius:10px;
+}
+
+/* 输入类：填充式浅底 + 细边 + 聚焦时一圈柔光（不是方框描边） */
+input[type=text],input[type=password],input[type=number],input[type=email],input[type=search],select,textarea{
+  border-radius:10px;border:1px solid var(--line);background:var(--surface);
+  transition:border-color .15s, box-shadow .15s;
+}
+input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,
+input[type=email]:focus,input[type=search]:focus,select:focus,textarea:focus{
+  border-color:var(--brand);box-shadow:var(--ring);
+}
+
+/* 标题更紧、正文更松 —— 大留白是这套观感的一半 */
+h1,h2,h3,.ws-card-head h2{ letter-spacing:-.012em }
+.help,.muted,.ws-dim,.reference-kind{ line-height:1.68 }
+
+/* 顶栏 / 页脚：压成一条细线，别抢内容 */
+.site-head,.app-head{ backdrop-filter:saturate(140%) blur(6px) }
