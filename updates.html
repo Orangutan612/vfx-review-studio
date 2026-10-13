@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<script src="./frame-guard.js?v=1791827165322"></script>
-<script src="./update-check.js?v=1791827165322"></script>
+<script src="./frame-guard.js?v=1791897137796"></script>
+<script src="./update-check.js?v=1791897137796"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="特效评审台更新说明：每个版本改了什么。">
@@ -23,7 +23,7 @@
   document.documentElement.dataset.theme = theme;
 })();
 </script>
-<link rel="stylesheet" href="./style.css?v=1791827165322">
+<link rel="stylesheet" href="./style.css?v=1791897137796">
 </head>
 <body>
 
@@ -47,10 +47,24 @@
 
   <section class="upd-hero">
     <span class="upd-badge">最新</span>
-    <h1>v1.4.19</h1>
+    <h1>v1.4.20</h1>
     <p class="upd-lead">选区不再限长：想评多长就选多长，代价（预计读多少页接触表）<strong>实时算给你看</strong>，由你自己权衡。</p>
     <p class="upd-meta">2026-10 · 链接版与本地版同步生效（前端同一份代码）</p>
   </section>
+
+  <section class="ws-card upd-card">
+    <div class="ws-card-head"><h2>本次 · v1.4.20</h2><span class="ws-dim">把评分标准改对了</span></div>
+    <div class="ws-card-body">
+      <ul class="upd-list">
+        <li><b>修：拿电影摄影的标准评游戏特效</b><span>把米哈游游戏原版的实机特效放进来评，工具给 68 分并列出"缺陷" —— 而它列的恰恰是这类特效的<b>核心语法</b>：闪白过曝、静止凝视、光雾叠加、余韵。<b>标准错了，后面全错。</b><br>现在明确写进标准：<b>你评的是游戏特效美术，不是电影摄影</b>；<b>必须先认意图</b>（类型 / 效果 / 节奏结构）<b>再判执行</b>，对着作品自己的意图判，不许拿 3A 写实去要求风格化特效；<b>风格选择不是缺陷</b>；判断"这可能是故意的"必须写出依据，<b>写不出依据不许扣分</b>（拿不准写 unknown）。</span></li>
+        <li><b>报告里写出这次用的标准</b><span>报告会明确标注：<b>评分标准：游戏特效（VFX）美术 —— 先认意图再判执行；闪白过曝、静止凝视、光雾叠加、余韵等只有与意图冲突时才算缺陷。</b>让你能核对它有没有按这套标准说话。</span></li>
+        <li><b>参考没勾选时会明确提醒</b><span>参考库里有素材但你一个都没勾选 → 报告会出现「未提供参考标杆」，看着像 bug。现在开评前直接提示：<b>这次不会做对照，要对照就先勾上</b>。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="upd-sep">上一版 · v1.4.19</h2>
+
 
   <section class="ws-card upd-card">
     <div class="ws-card-head"><h2>本次 · v1.4.19</h2><span class="ws-dim">修一处语法错</span></div>
