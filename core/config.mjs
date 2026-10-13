@@ -16,8 +16,8 @@ const isNode = typeof window === 'undefined'
   && Boolean(process.versions && process.versions.node);
 
 const impl = isNode
-  ? await import('./config-node.mjs?v=1791897137796')
-  : await import('./config-browser.mjs?v=1791897137796');
+  ? await import('./config-node.mjs?v=1791898337566')
+  : await import('./config-browser.mjs?v=1791898337566');
 
 export const platform = isNode ? 'node' : 'browser';
 export const config = impl.config;
