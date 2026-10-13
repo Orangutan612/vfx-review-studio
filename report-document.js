@@ -225,6 +225,8 @@ export function renderScore(score) {
     + '<span class="score-grade">' + escapeHTML(scoreBand(total) || score.grade || '') + '</span>'
     + '</div>'
     + '<div class="score-dims">' + dims + '</div>'
+      + '<p class="score-standard">评分标准：<b>游戏特效（VFX）美术</b> —— 先认意图（类型 / 效果 / 节奏结构）再判执行；'
+        + '闪白过曝、静止凝视、光雾叠加、余韵等属于这个领域的常规语法，<b>只有在与意图冲突时才算缺陷</b>。</p>'
       + (score.counts ? '<p class="score-basis">判定依据：<b>' + score.counts.pass + '</b> 项通过 · <b>'
         + score.counts.warn + '</b> 项有隐患 · <b>' + score.counts.fail + '</b> 项不通过'
         + (score.counts.unknown ? ' · ' + score.counts.unknown + ' 项看不清' : '')
