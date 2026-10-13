@@ -7,9 +7,9 @@
  *   3. 把挑中的时刻按原分辨率抽帧，带上逐像素实算数值
  *   4. 全部证据交给模型终审，返回结构化报告并渲染
  */
-import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791897137796';
-import { referenceObjectURL } from './core/bridge.mjs?v=1791897137796';
-import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791897137796';
+import { inspectVideo, decodeSequence, oneContactBatch, scanRatios, dataUrlBitmap } from './frame-sequence.js?v=1791898337566';
+import { referenceObjectURL } from './core/bridge.mjs?v=1791898337566';
+import { renderReport, buildStandaloneHTML, reportToMarkdown } from './report-document.js?v=1791898337566';
 
 const $ = id => document.getElementById(id);
 
@@ -197,7 +197,7 @@ async function loadFile(file) {
 
 /* 选区不设人为上限：能选多长由视频本身决定（上传上限 2 分钟）。
    代价交给界面实时算 —— 选区越长，接触表页数越多，模型要读的图越多，耗时和费用越高。 */
-import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791897137796';
+import { estimateWork, MIN_CLIP_SECONDS } from './core/clip-cost.mjs?v=1791898337566';
 
 const videoDuration = () => state.mediaDuration || video.duration || 0;
 const selectedRange = () => ({ start: Number($('range-start').value), end: Number($('range-end').value) });
